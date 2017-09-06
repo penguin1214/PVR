@@ -10,8 +10,8 @@
 #include "Vector3.h"
 #include "camera.h"
 #include "volume.h"
+#include "interpolate.h"
 
-#define PI = 3.14159265359
 
 #define kCIELEN 95
 

@@ -8,6 +8,7 @@
 
 struct Presets;
 
+#define PI 3.14159265359;
 #define kC_1 3.7418e-16
 #define kC_2 1.4388e-2
 
@@ -20,16 +21,17 @@ __constant__ double dev_oa;
 __constant__ double dev_os;
 __constant__ double dev_ot;
 
-__constant__ double dev_aspect_ratio;
+__constant__ double dev_w;
+__constant__ double dev_h;
 __constant__ double dev_near_plane_distance;
 __constant__ double dev_wds;
-__constant__ double dev_PI;
 __constant__ double dev_C;
 __constant__ double dev_CIE_X[kCIELEN];
 __constant__ double dev_CIE_Y[kCIELEN];
 __constant__ double dev_CIE_Z[kCIELEN];
 __constant__ double dev_fast_trans[16];
 __constant__ double dev_fast_itrans[16];
+
 
 const double CIE_X[] = {
 	1.299000e-04, 2.321000e-04, 4.149000e-04, 7.416000e-04, 1.368000e-03,
@@ -153,7 +155,7 @@ __device__ double valueAtWorld(double *g, double *itrans, double* trans, double 
 	y = (w_y - w_y0) / (w_y1 - w_y0);
 	z = (w_z - w_z0) / (w_z1 - w_z0);
 
-	return linearInterpolate(g, i, j, k, x, y, z);
+	return linearInterpolate(g, i, j, k, x, y, z, dev_gridx, dev_gridy, dev_gridz);
 }
 // minbox is the corner of AABB with minimal coordinates - left bottom, maxbox is maximal corner
 //code originally from http://gamedev.stackexchange.com/questions/18436/most-efficient-aabb-vs-ray-collision-algorithms
@@ -245,7 +247,8 @@ __device__ double radiance(double lambda, double T) {
 }
 
 __global__ void colorKernel(int SPEC_TOTAL_SAMPLES, bool QUALITY_ROOM, double LeScale, int SPEC_SAMPLE_STEP, int CHROMA,
-	double *dev_le, double* dev_l, double *dev_le_mean, double *dev_temperature_grid, float *dev_image, double *dev_xm, double *dev_ym, double *dev_zm, Vector3 *dev_eyepos, Vector3 *dev_forward, Vector3 *dev_right, Vector3 *dev_up, Vector3 *dev_minCoord, Vector3 *dev_maxCoord) {
+	double *dev_le, double* dev_l, double *dev_le_mean, double *dev_temperature_grid, float *dev_image, double *dev_xm, double *dev_ym, double *dev_zm,
+	Vector3 *dev_eyepos, Vector3 *dev_forward, Vector3 *dev_right, Vector3 *dev_up, Vector3 *dev_minCoord, Vector3 *dev_maxCoord) {
 	/*2D grid of 2D blocks
 	int blockId = blockIdx.x + blockIdx.y * gridDim.x;
 	int threadId = blockId * (blockDim.x * blockDim.y)
@@ -261,11 +264,7 @@ __global__ void colorKernel(int SPEC_TOTAL_SAMPLES, bool QUALITY_ROOM, double Le
 		double u = -1.0 + double(x) * du;
 		double v = -1.0 + double(y) * dv;
 
-		double fovy = dev_PI * 0.25;
-		double w = dev_near_plane_distance * tan(fovy);
-		double h = w / dev_aspect_ratio;
-
-		Vector3 nearPlanePos = *dev_eyepos + *dev_forward * dev_near_plane_distance + *dev_right * u *(w / 2) + *dev_up * v *(h / 2);
+		Vector3 nearPlanePos = *dev_eyepos + *dev_forward * dev_near_plane_distance + (*dev_right) * u * (dev_w / 2) + (*dev_up) * v * (dev_h / 2);
 		Vector3 direction = nearPlanePos - *dev_eyepos;
 		direction.normalize();
 
@@ -274,7 +273,8 @@ __global__ void colorKernel(int SPEC_TOTAL_SAMPLES, bool QUALITY_ROOM, double Le
 
 		int index_p = y * (dev_xsize)+x;
 
-		double *local_L = new double[SPEC_TOTAL_SAMPLES];
+		//double *local_L = new double[SPEC_TOTAL_SAMPLES];
+		double local_L[5];
 
 
 
@@ -451,14 +451,12 @@ cudaError_t Renderer::loadConstantMem() {
 		fprintf(stderr, "cudaMemcpy failed!");
 	}
 
-	double vPI = 3.14159265359;
-	cudaStatus = cudaMemcpyToSymbol(dev_PI, &vPI, sizeof(double));
+	cudaStatus = cudaMemcpyToSymbol(dev_w, &_cam->_film->_w, sizeof(double));
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaMemcpy failed!");
 	}
 
-	double aspr = _cam->_film->aspectRatio();
-	cudaStatus = cudaMemcpyToSymbol(dev_aspect_ratio, &aspr, sizeof(double));
+	cudaStatus = cudaMemcpyToSymbol(dev_h, &_cam->_film->_h, sizeof(double));
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaMemcpy failed!");
 	}
@@ -488,22 +486,27 @@ cudaError_t Renderer::loadConstantMem() {
 		;
 	}
 
-	cudaStatus = cudaMemcpyToSymbol(dev_CIE_Z, &CIE_Y, kCIELEN * sizeof(double));
+	cudaStatus = cudaMemcpyToSymbol(dev_CIE_Z, &CIE_Z, kCIELEN * sizeof(double));
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaMemcpy failed!");
 		;
 	}
 
-	cudaStatus = cudaMemcpyToSymbol(dev_fast_trans, &_volume->_grid->_trans, 16 * sizeof(double));
+	/* TODO: why can't use trans*/
+	cudaStatus = cudaMemcpyToSymbol(dev_fast_trans, &(_volume->_grid->_trans[0]), 16 * sizeof(double));
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaMemcpy failed!");
 	}
 
-	cudaStatus = cudaMemcpyToSymbol(dev_fast_itrans, &_volume->_grid->_trans, 16 * sizeof(double));
+	cudaStatus = cudaMemcpyToSymbol(dev_fast_itrans, &(_volume->_grid->_itrans[0]), 16 * sizeof(double));
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaMemcpy failed!");
 	}
 
+	cudaStatus = cudaGetLastError();
+	if (cudaStatus = cudaSuccess) {
+		std::cout << "Constant memory load done." << std::endl;
+	}
 
 	return cudaStatus;
 }
@@ -512,6 +515,7 @@ cudaError_t Renderer::loadMem(Vector3 *deyepos, Vector3 *dforward, Vector3 *drig
 	float *dimg, double *devT, double *dle, double *dl, double *dlemean, double *dxm, double *dym, double *dzm,
 	double *Le, double *L, double *LeMean, double *xm, double *ym, double *zm,
 	double *temperature_grid) {
+
 	cudaError_t cudaStatus;
 	// Choose which GPU to run on, change this on a multi-GPU system.
 	cudaStatus = cudaSetDevice(0);
@@ -766,7 +770,8 @@ float* Renderer::drawFire(double* temperature_grid, float *image) {
 	Vector3 *d_forward;
 	Vector3 *d_right;
 	Vector3 *d_up;
-	Vector3 *dev_minCoord, *dev_maxCoord;
+	Vector3 *dev_minCoord;
+	Vector3 *dev_maxCoord;
 
 	float *dev_img = new float[IMGSIZE];
 	double *dev_T = new double[_volume->_grid->getSize()];
@@ -777,18 +782,169 @@ float* Renderer::drawFire(double* temperature_grid, float *image) {
 	double *dev_xm = new double[SPEC_TOTAL_SAMPLES];
 	double *dev_ym = new double[SPEC_TOTAL_SAMPLES];
 	double *dev_zm = new double[SPEC_TOTAL_SAMPLES];
+	cudaError_t cudaStatus;
+	// Choose which GPU to run on, change this on a multi-GPU system.
+	cudaStatus = cudaSetDevice(0);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
+	}
 
-	loadMem(d_eyepos, d_forward, d_right, d_up, dev_minCoord, dev_maxCoord,
-		dev_img, dev_T, dev_le, dev_l, dev_le_mean, dev_xm, dev_ym, dev_zm,
-		Le, L, LeMean, xm, ym, zm,
-		temperature_grid);
+	cudaStatus = cudaMalloc((void**)&d_eyepos, sizeof(Vector3));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+	}
+	
+	cudaStatus = cudaMalloc((void**)&d_forward, sizeof(Vector3));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+	}
+
+	cudaStatus = cudaMalloc((void**)&d_right, sizeof(Vector3));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+	}
+
+	cudaStatus = cudaMalloc((void**)&d_up, sizeof(Vector3));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+	}
+
+	// Copy input vectors from host memory to GPU buffers.
+	cudaStatus = cudaMemcpy(d_eyepos, &_cam->_eyepos, sizeof(Vector3), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+	}
+
+	cudaStatus = cudaMemcpy(d_forward, &_cam->_forward, sizeof(Vector3), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+	}
+
+	cudaStatus = cudaMemcpy(d_right, &_cam->_right, sizeof(Vector3), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+	}
+
+	cudaStatus = cudaMemcpy(d_up, &_cam->_up, sizeof(Vector3), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+	}
+
+	cudaStatus = cudaMalloc((void**)&dev_minCoord, sizeof(Vector3));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+	}
+
+	cudaStatus = cudaMalloc((void**)&dev_maxCoord, sizeof(Vector3));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+	}
+
+	cudaStatus = cudaMemcpy(dev_minCoord, &_volume->_grid->_min_coord, sizeof(Vector3), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+	}
+
+	cudaStatus = cudaMemcpy(dev_maxCoord, &_volume->_grid->_max_coord, sizeof(Vector3), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+	}
+
+	cudaStatus = cudaMalloc((void**)&dev_xm, SPEC_TOTAL_SAMPLES * sizeof(double));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+	}
+
+	cudaStatus = cudaMalloc((void**)&dev_ym, SPEC_TOTAL_SAMPLES * sizeof(double));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+	}
+
+	cudaStatus = cudaMalloc((void**)&dev_zm, SPEC_TOTAL_SAMPLES * sizeof(double));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+	}
+
+	int imsize = _x * _y * 3;
+	cudaStatus = cudaMalloc((void**)&dev_img, imsize * sizeof(float));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+		;
+	}
+
+	cudaStatus = cudaMalloc((void**)&dev_T, _volume->_grid->getSize() * sizeof(double));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+		;
+	}
+
+	cudaStatus = cudaMalloc((void**)&dev_le, LeSize * sizeof(double));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+		;
+	}
+
+	cudaStatus = cudaMalloc((void**)&dev_l, SPEC_TOTAL_SAMPLES * sizeof(double));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+		;
+	}
+
+	cudaStatus = cudaMalloc((void**)&dev_le_mean, SPEC_TOTAL_SAMPLES * sizeof(double));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+		;
+	}
+
+	// Copy input vectors from host memory to GPU buffers.
+	cudaStatus = cudaMemcpy(dev_T, temperature_grid, _volume->_grid->getSize() * sizeof(double), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+		;
+	}
+
+	cudaStatus = cudaMemcpy(dev_le_mean, LeMean, SPEC_TOTAL_SAMPLES * sizeof(double), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+		;
+	}
+
+	cudaStatus = cudaMemcpy(dev_le, Le, LeSize * sizeof(double), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+		;
+	}
+
+	cudaStatus = cudaMemcpy(dev_l, L, SPEC_TOTAL_SAMPLES * sizeof(double), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+		;
+	}
+
+	cudaStatus = cudaMemcpy(dev_xm, xm, SPEC_TOTAL_SAMPLES * sizeof(double), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+		;
+	}
+
+	cudaStatus = cudaMemcpy(dev_ym, ym, SPEC_TOTAL_SAMPLES * sizeof(double), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+		;
+	}
+
+	cudaStatus = cudaMemcpy(dev_zm, zm, SPEC_TOTAL_SAMPLES * sizeof(double), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+		;
+	}
 
 
 	// call kernel
 	std::cout << "start kernel... " << std::endl;
-	dim3 color_grid(64, 64);
+	dim3 color_grid(32, 32);
 	//dim3 color_block(SPEC_TOTAL_SAMPLES);
-	dim3 color_block(4, 4);
+	dim3 color_block(16, 16);
 
 	cudaEvent_t start, stop;
 	float elapse_time;
@@ -805,38 +961,33 @@ float* Renderer::drawFire(double* temperature_grid, float *image) {
 	cudaEventElapsedTime(&elapse_time, start, stop);
 	printf("Elapsed time : %f ms\n", elapse_time);
 
-	cudaError_t cudaStatus;
+	// cudaError_t cudaStatus;
 	// Check for any errors launching the kernel
 	cudaStatus = cudaGetLastError();
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "colorKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-		;
 	}
 
 	// cudaDeviceSynchronize waits for the kernel to finish, and returns
 	// any errors encountered during the launch.
-	cudaStatus = cudaDeviceSynchronize();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching colorKernel!\n", cudaStatus);
+	//cudaStatus = cudaDeviceSynchronize();
+	//if (cudaStatus != cudaSuccess) {
+	/*	fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching colorKernel!\n", cudaStatus);
 		;
-	}
+	}*/
 
 	// Copy output vector from GPU buffer to host memory.
 	cudaStatus = cudaMemcpy(image, dev_img, IMGSIZE * sizeof(float), cudaMemcpyDeviceToHost);
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaMemcpy failed!");
-		;
 	}
 
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "renderWithCuda failed!");
-	}
 	// cudaDeviceReset must be called before exiting in order for profiling and
 	// tracing tools such as Nsight and Visual Profiler to show complete traces.
-	cudaStatus = cudaDeviceReset();
+	/*cudaStatus = cudaDeviceReset();
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaDeviceReset failed!");
-	}
+	}*/
 
 	return image;
 }

@@ -3,6 +3,8 @@
 
 #include "Vector3.h"
 
+#include "externals/glm/gtx/transform.hpp"
+
 class Grid {
 public:
 	Grid() {
@@ -12,12 +14,19 @@ public:
 		_trans = new double[16]; _itrans = new double[16];
 	}
 
-	int _xdim;
-	int _ydim;
-	int _zdim;
-	Vector3 _min_coord, _max_coord;
+	int _xdim = 30;
+	int _ydim = 60;
+	int _zdim = 30;
+	int GRID_SIZE = 4;
+
+	Vector3 _min_coord = Vector3(0.0, 0.0, 0.0);
+	Vector3 _max_coord = Vector3(0.0, 0.0, 0.0);
+
+	glm::dmat4x4 _mat_trans;
+	glm::dmat4x4 _mat_itrans;
 	double *_trans, *_itrans;	// world <-> local transform
 
+	void setSize(int xd, int yd, int zd) { _xdim = xd; _ydim = yd; _zdim = zd; }
 	__host__ __device__ int indexAt(int i, int j, int k) const {
 		return i + (_xdim)*j + (_xdim*_ydim*k);
 	}
@@ -88,7 +97,25 @@ public:
 		return 1.0;
 	}
 
-	__host__ __device__ void setTransform(double *t) {}
+	__host__ __device__ void setTransform(double *t) {
+		for (int i = 0; i < 16; i++){
+			_trans[i] = t[i];
+		}
+
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				_mat_trans[i][j] = _trans[i + j * 4];
+			}
+		}
+
+		_mat_itrans = glm::inverse(_mat_trans);
+
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				_itrans[i + j * 4] = _mat_itrans[i][j];
+			}
+		}
+	}
 
 	__host__ __device__ int getSize() const { return _xdim*_ydim*_zdim; }
 
@@ -102,7 +129,7 @@ public:
 		return 0;
 	}
 
-	double dy() const {
+	__host__ __device__ double dy() const {
 		if (_ydim != 0) {
 			double x, y0, y1, z;
 			indexToWorld(_trans, 0, 0, 0, x, y0, z);
@@ -112,7 +139,7 @@ public:
 		return 0;
 	}
 
-	double dz() const {
+	__host__ __device__ double dz() const {
 		if (_zdim != 0) {
 			double x, y, z0, z1;
 			indexToWorld(_trans, 0, 0, 0, x, y, z0);

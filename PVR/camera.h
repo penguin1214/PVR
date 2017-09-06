@@ -16,6 +16,11 @@ public:
 	void setFilm(double w, double h, double vfov, double dis) {
 		_w = w; _h = h; _vfov = vfov; _nearPlaneDistance = dis;
 	}
+	void setFovAndDis(double fov, double dis, double aspr) {
+		_vfov = fov; _nearPlaneDistance = dis;
+		_w = _nearPlaneDistance * tan(_vfov);
+		_h = _w / aspr;
+	}
 };
 
 class Camera {

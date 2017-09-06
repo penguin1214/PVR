@@ -25,11 +25,13 @@ public:
 
 class BlackBody : public Volume {
 public:
-	BlackBody() = default;
+	BlackBody() {
+		_grid = new Grid();
+	}
 
 	const double C_1 = 3.7418e-16;
 	const double C_2 = 1.4388e-2;
-	const double LeScale = 0.2;
+	const double LeScale = 0.25;
 
 	virtual double radiance(double lambda, double T) override {
 		return (2.0*C_1) / (pow(lambda, 5.0) * (exp(C_2 / (lambda*T)) - 1.0));

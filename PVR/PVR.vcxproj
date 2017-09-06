@@ -21,8 +21,10 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="util.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="interpolate.cu" />
     <CudaCompile Include="Renderer.cu" />
     <CudaCompile Include="util.cu" />
     <CudaCompile Include="vector3.cu" />
@@ -30,6 +32,7 @@
   <ItemGroup>
     <ClInclude Include="camera.h" />
     <ClInclude Include="grid.h" />
+    <ClInclude Include="interpolate.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="vector3.h" />
@@ -88,6 +91,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <LibraryPath>E:\github\PVR\PVR\externals\FreeImage;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
