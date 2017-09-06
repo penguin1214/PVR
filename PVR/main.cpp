@@ -81,32 +81,29 @@ int main() {
 	double *T = new double[grid_size];
 	float *image = new float[renderer._x * renderer._y * 3];
 
-	int num_file = 0;
-	std::string filename = "fire" + std::to_string(num_file) + ".bin";
-
-	//clock_t start = clock();
-
-	std::ifstream f(filename, std::ios::binary);
-	if (f) {
-		f.read(reinterpret_cast<char*>(T), grid_size * sizeof(double));
-	}
-
-	num_file++;
-
-	std::cout << "Read file " << filename << "  done." << std::endl;
-
 	cudaError_t cudaStatus;
 	cudaStatus = renderer.loadConstantMem();
-	std::cout << "Start rendering..." << std::endl;
-	renderer.drawFire(T, image);
-	renderer.saveImage(image);
 
+	int num_file = 0;
+	while (true) {
+		//clock_t start = clock();
 
+		std::string filename = "fire" + std::to_string(num_file) + ".bin";
+		std::ifstream f(filename, std::ios::binary);
+		if (f) {
+			f.read(reinterpret_cast<char*>(T), grid_size * sizeof(double));
+		}
 
+		num_file++;
 
-	//clock_t end = clock();
-	//std::cout << "\n" << diffclock(end, start) << std::endl;
+		std::cout << "Read file " << filename << "  done." << std::endl;
 
+		std::cout << "Start rendering..." << std::endl;
+		renderer.drawFire(T, image);
+		renderer.saveImage(image);
+		//clock_t end = clock();
+		//std::cout << "\n" << diffclock(end, start) << std::endl;
+	}
 
 	int t;
 	std::cin >> t;
