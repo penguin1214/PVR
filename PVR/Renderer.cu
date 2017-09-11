@@ -249,11 +249,7 @@ __device__ double radiance(double lambda, double T) {
 __global__ void colorKernel(int SPEC_TOTAL_SAMPLES, bool QUALITY_ROOM, double LeScale, int SPEC_SAMPLE_STEP, int CHROMA,
 	double *dev_le, double* dev_l, double *dev_le_mean, double *dev_temperature_grid, float *dev_image, double *dev_xm, double *dev_ym, double *dev_zm,
 	Vector3 *dev_eyepos, Vector3 *dev_forward, Vector3 *dev_right, Vector3 *dev_up, Vector3 *dev_minCoord, Vector3 *dev_maxCoord) {
-	/*2D grid of 2D blocks
-	int blockId = blockIdx.x + blockIdx.y * gridDim.x;
-	int threadId = blockId * (blockDim.x * blockDim.y)
-	+ (threadIdx.y * blockDim.x) + threadIdx.x;
-	}*/
+
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -269,13 +265,12 @@ __global__ void colorKernel(int SPEC_TOTAL_SAMPLES, bool QUALITY_ROOM, double Le
 		direction.normalize();
 
 		double tmin, tmax;
-		Vector3 normal;
+		//Vector3 normal;
 
 		int index_p = y * (dev_xsize)+x;
 
 		//double *local_L = new double[SPEC_TOTAL_SAMPLES];
 		double local_L[5];
-
 
 
 		if (rayBoxIntersection(*dev_minCoord, *dev_maxCoord, nearPlanePos, direction, &tmin, &tmax)) {
@@ -292,7 +287,6 @@ __global__ void colorKernel(int SPEC_TOTAL_SAMPLES, bool QUALITY_ROOM, double Le
 					local_L[i] = 0.0;
 
 					if (QUALITY_ROOM) {
-						const int jump = 1;
 						for (int a = 0; a < dev_gridx; a++) {
 							for (int b = 0; b < dev_gridy; b++) {
 								for (int c = 0; c < dev_gridz; c++) {
@@ -782,12 +776,19 @@ float* Renderer::drawFire(double* temperature_grid, float *image) {
 	double *dev_xm = new double[SPEC_TOTAL_SAMPLES];
 	double *dev_ym = new double[SPEC_TOTAL_SAMPLES];
 	double *dev_zm = new double[SPEC_TOTAL_SAMPLES];
+
 	cudaError_t cudaStatus;
 	// Choose which GPU to run on, change this on a multi-GPU system.
 	cudaStatus = cudaSetDevice(0);
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
 	}
+
+	cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaDeviceSetCacheConfig failed!");
+	}
+
 
 	cudaStatus = cudaMalloc((void**)&d_eyepos, sizeof(Vector3));
 	if (cudaStatus != cudaSuccess) {
