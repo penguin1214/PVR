@@ -671,7 +671,7 @@ cudaError_t Renderer::loadMem(Vector3 *deyepos, Vector3 *dforward, Vector3 *drig
 	return cudaStatus;
 }
 
-float* Renderer::drawFire(double* temperature_grid, float *image) {
+float* Renderer::drawFire(float* temperature_grid, float *image) {
 	// transform
 	// grid index to word coordinate
 	_volume->_grid->indexToWorld(_volume->_grid->_trans, 0, 0, 0, _volume->_grid->_min_coord.x, _volume->_grid->_min_coord.y, _volume->_grid->_min_coord.z);

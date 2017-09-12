@@ -17,7 +17,7 @@ public:
 	int _xdim = 30;
 	int _ydim = 60;
 	int _zdim = 30;
-	int GRID_SIZE = 4;
+	int GRID_SIZE = 4;	// ???
 
 	Vector3 _min_coord = Vector3(0.0, 0.0, 0.0);
 	Vector3 _max_coord = Vector3(0.0, 0.0, 0.0);

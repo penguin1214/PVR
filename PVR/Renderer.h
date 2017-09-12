@@ -78,7 +78,7 @@ public:
 		float *dimg, double *devT, double *dle, double *dl, double *dlemean, double *dxm, double *dym, double *dzm,
 		double *Le, double *L, double *LeMean, double *xm, double *ym, double *zm,
 		double *temperature_grid);
-	float* drawFire(double *temperatureGrid, float *image);
+	float* drawFire(float *temperatureGrid, float *image);
 	void saveImage(float *image);
 	//cudaError_t renderWithCuda(double *T);
 };

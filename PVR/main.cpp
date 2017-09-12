@@ -37,21 +37,56 @@ double Presets::dt = 1.0 / 100.0;
 const double PI = 3.14159265359;
 
 
-void loadFile() {}
+template<class T>
+T* loadBinary(const char * fn, int &gridx, int &gridy, int &gridz) {
+	if (sizeof(T) != sizeof(float))return nullptr;
+	FILE *fp = fopen(fn, "rb");
+	fread(&gridx, 1, sizeof(int), fp);
+	fread(&gridy, 1, sizeof(int), fp);
+	fread(&gridz, 1, sizeof(int), fp);
+
+	//N = Nx, NN = Nx*Ny, total = Nx*Ny*Nz;
+	//_MLCuMallocHost((void **)&data, total * sizeof(T));
+	int total = gridx * gridy * gridz;
+	T *data = new T[total];
+
+	//fread(&data[0], sizeof(T), total, fp);
+	fread(data, sizeof(T), total, fp);
+	for (int i = 0; i < total; i++) {
+		std::cout << data[i] << ", ";
+	}
+	fclose(fp);
+	printf("loaded %s <%d,%d,%d>\n", fn, gridx, gridy, gridz);
+	return data;
+}
+
 
 int main() {
-	int grid_size = Presets::GRID_X * Presets::GRID_Y * Presets::GRID_Z;
+	int num_file = 0;
+	int grid_x, grid_y, grid_z;
+	/*===========================================Read File================================================*/
+	//std::string str_filename = "fire" + std::to_string(num_file) + ".bin";
+	std::string str_filename = "car_data0200.bin";
+	const char* filename = str_filename.c_str();
+	num_file++;
 
+	float *T = loadBinary<float>(filename, grid_x, grid_y, grid_z);
+	std::cout << "Read file " << filename << "  done." << std::endl;
+
+	int grid_size = grid_x * grid_y * grid_z;
 	double trans[] = { 4,0,0,0,0,4,0,0,0,0,4,0,0,0,0,1 };
 
+	/*===========================================Renderer Set================================================*/
+
 	Renderer renderer(Presets::FRAME_X, Presets::FRAME_Y);
-	renderer.num_file = 0;
+
+	renderer.num_file = 0;   
 	renderer._volume->setCoefficent(0.05, 0.0, 0.05);
-	renderer._volume->_grid->setSize(30, 60, 30);
+	renderer._volume->_grid->setSize(grid_x, grid_y, grid_z);
 	renderer._volume->_grid->setTransform(trans);
 	renderer._volume->_wds = double(renderer._volume->_grid->GRID_SIZE) / double(std::max(renderer._volume->_grid->_xdim, std::max(renderer._volume->_grid->_ydim, renderer._volume->_grid->_zdim)) * Presets::SAMPLE_STEP_QUALITY);
 
-
+	/*===========================================Set Camera================================================*/
 	Vector3 lookAt(2, 4, 2);
 	Vector3 eyepos(2, 2, 7.5);
 	double angle = 0;
@@ -78,32 +113,16 @@ int main() {
 
 	renderer._cam->_film->setFovAndDis(fovy, near_plane_distance, aspect_ratio);
 
-	double *T = new double[grid_size];
+	/*===========================================Set Camera================================================*/
 	float *image = new float[renderer._x * renderer._y * 3];
 
 	cudaError_t cudaStatus;
 	cudaStatus = renderer.loadConstantMem();
 
-	int num_file = 0;
-	while (true) {
-		//clock_t start = clock();
-
-		std::string filename = "fire" + std::to_string(num_file) + ".bin";
-		std::ifstream f(filename, std::ios::binary);
-		if (f) {
-			f.read(reinterpret_cast<char*>(T), grid_size * sizeof(double));
-		}
-
-		num_file++;
-
-		std::cout << "Read file " << filename << "  done." << std::endl;
-
+	
 		std::cout << "Start rendering..." << std::endl;
 		renderer.drawFire(T, image);
 		renderer.saveImage(image);
-		//clock_t end = clock();
-		//std::cout << "\n" << diffclock(end, start) << std::endl;
-	}
 
 	int t;
 	std::cin >> t;
