@@ -37,7 +37,6 @@ extern __constant__ double dev_fast_itrans[16];
 
 class Renderer {
 public:
-	int _x; int _y;
 	Camera *_cam;
 	/* TODO : array of volume? */
 	BlackBody *_volume;
@@ -51,14 +50,14 @@ public:
 
 
 	Renderer() {
-		_x = 100; _y = 100;
 		_cam = new Camera();
+		_cam->_film->_w = 100; _cam->_film->_h = 100;
 		_volume = new BlackBody();
 	}
 
 	Renderer(const int x_pixels, const int y_pixels) {
-		_x = x_pixels; _y = y_pixels;
 		_cam = new Camera();
+		_cam->_film->_w = x_pixels; _cam->_film->_h = y_pixels;
 		_volume = new BlackBody();
 	}
 
@@ -72,6 +71,8 @@ public:
 		_cam->_forward = f;
 		_cam->_angle = ang;
 	}
+
+	bool rayBBoxIntersection(Vector3 minbox, Vector3 maxbox, const Vector3 &rayOrigin, const Vector3 &rayDirection, float &tmin, float &tmax);
 
 	cudaError_t loadConstantMem();
 	cudaError_t loadMem(Vector3 *deyepos, Vector3 *dforward, Vector3 *dright, Vector3 *dup, Vector3 *devmincorrd, Vector3 *devmaxcoord,

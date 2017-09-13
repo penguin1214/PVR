@@ -1,4 +1,6 @@
-﻿#include "Renderer.h"
+﻿#if 0
+
+#include "Renderer.h"
 
 #include "cuda.h"
 #include "cuda_runtime.h"
@@ -504,7 +506,6 @@ cudaError_t Renderer::loadConstantMem() {
 
 	return cudaStatus;
 }
-
 cudaError_t Renderer::loadMem(Vector3 *deyepos, Vector3 *dforward, Vector3 *dright, Vector3 *dup, Vector3 *devmincoord, Vector3 *devmaxcoord,
 	float *dimg, double *devT, double *dle, double *dl, double *dlemean, double *dxm, double *dym, double *dzm,
 	double *Le, double *L, double *LeMean, double *xm, double *ym, double *zm,
@@ -994,4 +995,5 @@ float* Renderer::drawFire(float* temperature_grid, float *image) {
 }
 
 
+#endif
 

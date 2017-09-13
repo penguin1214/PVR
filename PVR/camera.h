@@ -18,8 +18,21 @@ public:
 	}
 	void setFovAndDis(double fov, double dis, double aspr) {
 		_vfov = fov; _nearPlaneDistance = dis;
-		_w = _nearPlaneDistance * tan(_vfov);
-		_h = _w / aspr;
+		_h = 2 * _nearPlaneDistance*tan(fov / 2);
+		_w = _h * aspr;
+	}
+	void setSize(int w, int h) {
+		_w = w; _h = h;
+	}
+	void setFov(double fov) {
+		_vfov = fov;
+		_nearPlaneDistance = _h / (2 * tan(fov / 2));
+		std::cout << "film vfov: " << _vfov << ", distance: " << _nearPlaneDistance << std::endl;
+	}
+	void setDis(double dis) {
+		_nearPlaneDistance = dis;
+		_vfov = 2 * atan(_h / (2 * _nearPlaneDistance));
+		std::cout << "film vfov: " << _vfov << ", distance: " << _nearPlaneDistance << std::endl;
 	}
 };
 
