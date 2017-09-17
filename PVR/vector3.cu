@@ -95,6 +95,10 @@ __host__ __device__ double Vector3::norm() const {
 	return norm;
 }
 
+__host__ __device__ double Vector3::length() {
+	return sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2));
+}
+
 // Normalize the vector
 __host__ __device__ void Vector3::normalize() {
 	double size = sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2));

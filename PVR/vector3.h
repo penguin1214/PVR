@@ -15,6 +15,7 @@ public:
 	__host__ __device__ void substract(Vector3 *v);
 	__host__ __device__ void rotate(Vector3 *axisRotate, double *angle, double a, double b, double c);
 
+	__host__ __device__ double length();
 	__host__ __device__ void normalize();
 	__host__ __device__ double dot(const Vector3 &vTemp);
 	__host__ __device__ static double dot(const Vector3 &v1, const Vector3 &v2);

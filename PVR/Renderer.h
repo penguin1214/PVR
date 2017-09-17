@@ -6,6 +6,7 @@
 #include "device_launch_parameters.h"
 
 #include <omp.h>
+#include <vector>
 
 #include "Vector3.h"
 #include "camera.h"
@@ -34,12 +35,25 @@ extern __constant__ double dev_CIE_Z[kCIELEN];
 extern __constant__ double dev_fast_trans[16];
 extern __constant__ double dev_fast_itrans[16];
 
+class Light {
+public:
+	Vector3 pos;
+	Vector3 color;
+	float intensity;
+	Light() { pos = Vector3(-100, 100, -50); color = Vector3(1.0); intensity = 10.0; }
+};
+
+class PointLight : public Light {
+public:
+	PointLight() { pos = Vector3(-200, 100, -100); color = Vector3(1.0); intensity = 1.0; }
+};
 
 class Renderer {
 public:
 	Camera *_cam;
 	/* TODO : array of volume? */
 	BlackBody *_volume;
+	std::vector<PointLight* > _lights;
 
 	const int SPEC_SAMPLE_STEP = 15;
 	const int SPEC_TOTAL_SAMPLES = 89 / SPEC_SAMPLE_STEP;

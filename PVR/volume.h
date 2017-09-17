@@ -17,7 +17,7 @@ public:
 	}
 
 	virtual double radiance(double lambda, double T) = 0;
-	double _oa, _ot, _os;
+	double _oa, _ot, _os;	// oa: absorption, ot: extinction(attennuation), os: scatter
 	double _wds; // ray caster sample step
 	Grid *_grid;
 };

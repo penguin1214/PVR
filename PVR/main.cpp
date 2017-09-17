@@ -4,6 +4,7 @@
 #include <string>
 #include <iterator>
 #include <algorithm>
+#include <cmath>
 
 #include "util.h"
 #include "Renderer.h"
@@ -22,8 +23,8 @@ struct Presets {
 	static const int GRID_Z = 30;
 
 	// frame
-	static const int FRAME_X = 300;
-	static const int FRAME_Y = 300;
+	static const int FRAME_X = 600;
+	static const int FRAME_Y = 400;
 
 	static double dt;
 	static const bool QUALITY_ROOM = false; //def how the walls radiance should be calculated
@@ -53,11 +54,38 @@ T* loadBinary(const char * fn, int &gridx, int &gridy, int &gridz) {
 	//fread(&data[0], sizeof(T), total, fp);
 	fread(data, sizeof(T), total, fp);
 	/*for (int i = 0; i < total; i++) {
-		std::cout << data[i] << ", ";
+		if (data[i] > 1) {
+			std::cout << data[i] << ", ";
+		}
 	}*/
 	fclose(fp);
 	printf("loaded %s <%d,%d,%d>\n", fn, gridx, gridy, gridz);
 	return data;
+}
+
+// i,j,k are floor()
+int getIndex(int gridx, int gridy, int gridz, int i, int j, int k) {
+	return k*gridx*gridy + j*gridx + i;
+}
+
+float trilinearInterp(float *data, int gridx, int gridy, int gridz, float x, float y, float z) {
+	int i = floor(x); int j = floor(y); int k = floor(z);
+	//std::cout << i << ", " << j << ", " << k << std::endl;
+	float xd = (x - i); float yd = y - j; float zd = z - k;
+	 
+	float c00 = data[getIndex(gridx, gridy, gridz, i, j, k)] * (1 - xd) + data[getIndex(gridx, gridy, gridz, i + 1, j, k)] * xd;
+	float c01 = data[getIndex(gridx, gridy, gridz, i, j, k + 1)] * (1 - xd) + data[getIndex(gridx, gridy, gridz, i + 1, j, k + 1)] * xd;
+	float c10 = data[getIndex(gridx, gridy, gridz, i, j + 1, k)] * (1 - xd) + data[getIndex(gridx, gridy, gridz, i + 1, j + 1, k)] * xd;
+	float c11 = data[getIndex(gridx, gridy, gridz, i, j + 1, k + 1)] * (1 - xd) + data[getIndex(gridx, gridy, gridz, i + 1, j + 1, k + 1)] * xd;
+
+	float c0 = c00*(1 - yd) + c10*yd;
+	float c1 = c01*(1 - yd) + c11*yd;
+
+	float c = c0*(1 - zd) + c1*zd;
+	if (c > 1) {
+		std::cout << c << std::endl;
+	}
+	return c;
 }
 
 
@@ -78,11 +106,15 @@ int main() {
 
 	renderer.num_file = 0;
 	renderer._volume->_grid->setSize(grid_x, grid_y, grid_z);
+	renderer._volume->setCoefficent(100, 1, 1);
+
+	PointLight *pl = new PointLight();
+	renderer._lights.push_back(pl);
 	/*===========================================Set Camera================================================*/
 	//Vector3 lookAt(2, 4, 2);
 	//Vector3 eyepos(2, 2, 7.5);
-	Vector3 lookAt(0, 0, 1);
-	Vector3 eyepos(-100, 300, -50.0);
+	Vector3 lookAt(0, 50, 1);
+	Vector3 eyepos(0, 0, -100);
 	double angle = 0;
 	// rotate camera according to angle
 	eyepos -= lookAt;
@@ -119,7 +151,8 @@ int main() {
 	renderer._volume->_grid->_max_coord = Vector3(grid_x - 1, grid_y - 1, grid_z - 1);
 
 	// ray marching
-	int num_samples = 10;
+	int num_samples = 200;
+	int num_light_samples = 200;
 	float u, v;
 	float tmin, tmax;
 	float stride;
@@ -127,15 +160,19 @@ int main() {
 	float density;
 	Vector3 col;
 
+	int xdim = grid_x; int ydim = grid_y; int zdim = grid_z;
+
 	for (int y = 0; y < renderer._cam->_film->_h; y++) {
 		v = 0.5 - y / renderer._cam->_film->_h;
+		std::cout << (float)y / float(renderer._cam->_film->_h) << std::endl;
 		for (int x = 0; x < renderer._cam->_film->_w; x++) {
 			u = -0.5 + x / renderer._cam->_film->_w;
 
-			col = Vector3(0.1, 0.3, 0.0);
+			float T = 1.0;	// transparency
+			float Lo = 0;
+
 			// pixel pos
-			Vector3 cursor = renderer._cam->_eyepos + renderer._cam->_forward*renderer._cam->_film->_nearPlaneDistance + renderer._cam->_right*u*(renderer._cam->_film->_w/2) + renderer._cam->_up*v*(renderer._cam->_film->_h/2);
-			//std::cout << cursor << std::endl;
+			Vector3 cursor = renderer._cam->_eyepos + renderer._cam->_forward*renderer._cam->_film->_nearPlaneDistance + renderer._cam->_right*u*renderer._cam->_film->_w + renderer._cam->_up*v*renderer._cam->_film->_h;
 
 			Vector3 ray_dir = cursor - renderer._cam->_eyepos;
 			ray_dir.normalize();
@@ -145,19 +182,48 @@ int main() {
 					//std::cout << "tmin: " << tmin << ", tmax: " << tmax << std::endl;
 					stride = (tmax - tmin) / (num_samples + 1);
 					for (int n = 0; n < num_samples; n++) {
-						sample_pos = cursor + ray_dir*tmin + (n + 1)*stride*ray_dir;
-						int coordx = (int)sample_pos.x; int coordy = (int)sample_pos.y; int coordz = (int)sample_pos.z;
+							/* Use back-to-front compositing */
+						//sample_pos = cursor + ray_dir*tmin + (n + 1)*stride*ray_dir;
+						sample_pos = cursor + ray_dir*tmax - (n + 1)*stride*ray_dir;
 						// interpolate
-						int index = sample_pos.x + sample_pos.y*renderer._volume->_grid->_xdim + sample_pos.z*renderer._volume->_grid->_xdim*renderer._volume->_grid->_ydim;
-						density = D[index];
-						col += Vector3(density);
+						//int index = sample_pos.x + sample_pos.y*renderer._volume->_grid->_xdim + sample_pos.z*renderer._volume->_grid->_xdim*renderer._volume->_grid->_ydim;
+						if (sample_pos.x > 0 && sample_pos.x < xdim && sample_pos.y > 0 && sample_pos.y < ydim && sample_pos.z < xdim && sample_pos.z > 0) {
+							density = trilinearInterp(D, xdim, ydim, zdim, sample_pos.x, sample_pos.y, sample_pos.z);
+
+							if (density > 0) {
+								//T *= 1.0 - density * stride *renderer._volume->_oa;
+								T *= std::exp(-renderer._volume->_oa*density*stride);
+
+								Vector3 light_ray = sample_pos - renderer._lights[0]->pos;
+								float l_stride = light_ray.length() / (num_light_samples + 1);
+								light_ray.normalize();
+
+								float l_T = 1.0;
+								for (int j = 0; j < num_light_samples; j++) {
+									// compute the radiance at the sample point
+									//Vector3 l_sample_pos = renderer._lights[0]->pos + j*l_stride*light_ray;
+									Vector3 l_sample_pos = sample_pos - j*l_stride*light_ray;
+									if (l_sample_pos.x > 0 && l_sample_pos.x < grid_x && l_sample_pos.y > 0 && l_sample_pos.y < grid_y && l_sample_pos.z > 0 && l_sample_pos.z < grid_z) {
+										int l_index = l_sample_pos.x + l_sample_pos.y*renderer._volume->_grid->_xdim + l_sample_pos.z*renderer._volume->_grid->_xdim*renderer._volume->_grid->_ydim;
+										float l_density = trilinearInterp(D, xdim, ydim, zdim, l_sample_pos.x, l_sample_pos.y, l_sample_pos.z);
+										//l_T *= 1.0 - renderer._volume->_oa*l_stride*l_density;
+										l_T *= std::exp(-renderer._volume->_oa*density*l_stride); // T = e^(-k(t)*dx)
+									}
+								}
+								float Li = renderer._lights[0]->intensity * l_T;	// light radiance at sampled position
+								Lo += Li*T;
+							}
+						}
 					}
 				}
 			}
-
-			image[3*(y*(int)renderer._cam->_film->_w + x) + 0] = col.x;
-			image[3*(y*(int)renderer._cam->_film->_w + x) + 1] = col.y;
-			image[3*(y*(int)renderer._cam->_film->_w + x) + 2] = col.z;
+			else {
+				Lo = 0;
+			}
+			Lo /= 255;
+			image[3 * (y*(int)renderer._cam->_film->_w + x) + 0] = Lo;
+			image[3 * (y*(int)renderer._cam->_film->_w + x) + 1] = Lo;
+			image[3 * (y*(int)renderer._cam->_film->_w + x) + 2] = Lo;
 		}
 	}
 	/*for (int z = 0; z < grid_z; z++) {
