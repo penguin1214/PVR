@@ -72,7 +72,7 @@ float trilinearInterp(float *data, int gridx, int gridy, int gridz, float x, flo
 	int i = floor(x); int j = floor(y); int k = floor(z);
 	//std::cout << i << ", " << j << ", " << k << std::endl;
 	float xd = (x - i); float yd = y - j; float zd = z - k;
-	 
+
 	float c00 = data[getIndex(gridx, gridy, gridz, i, j, k)] * (1 - xd) + data[getIndex(gridx, gridy, gridz, i + 1, j, k)] * xd;
 	float c01 = data[getIndex(gridx, gridy, gridz, i, j, k + 1)] * (1 - xd) + data[getIndex(gridx, gridy, gridz, i + 1, j, k + 1)] * xd;
 	float c10 = data[getIndex(gridx, gridy, gridz, i, j + 1, k)] * (1 - xd) + data[getIndex(gridx, gridy, gridz, i + 1, j + 1, k)] * xd;
@@ -88,6 +88,22 @@ float trilinearInterp(float *data, int gridx, int gridy, int gridz, float x, flo
 	return c;
 }
 
+bool sphereHit(Vector3 center, float radius, Ray &r, float t_min, float t_max, float &t) {
+	Vector3 oc = r.origin - center;
+	float a = r.direction.dot(r.direction);
+	float b = oc.dot(r.direction);
+	float c = oc.dot(oc) - radius*radius;
+	float disc = b*b - a*c;
+	if ((sqrt(disc)) >= 0) {
+		// calculate hit point
+		float temp = (-b - sqrt(b * b - a * c)) / a;
+		if (temp < t_max && temp > t_min) {
+			t = temp;
+			return true;
+		}
+	}
+	return false;
+}
 
 int main() {
 	int num_file = 0;
@@ -101,12 +117,11 @@ int main() {
 
 	int grid_size = grid_x * grid_y * grid_z;
 	/*===========================================Renderer Set================================================*/
-
 	Renderer renderer(Presets::FRAME_X, Presets::FRAME_Y);
 
 	renderer.num_file = 0;
 	renderer._volume->_grid->setSize(grid_x, grid_y, grid_z);
-	renderer._volume->setCoefficent(100, 1, 1);
+	renderer._volume->setCoefficent(0.3, 1, 1);
 
 	PointLight *pl = new PointLight();
 	renderer._lights.push_back(pl);
@@ -139,10 +154,11 @@ int main() {
 	renderer.setCamera(eyepos, lookAt, right, forward, up, angle);
 
 	//const double fovy = PI*0.25;	// 90 deg
-	const double dis = 50;
+	const double dis = 80;
 	renderer._cam->_film->setDis(dis);
-
-
+	/*=========================================== Set Sphere ================================================*/
+	Vector3 sphere_o(100, 200, 100);
+	float sphere_r = 80;
 	/*=========================================== Render ================================================*/
 	float *image = new float[renderer._cam->_film->_w * renderer._cam->_film->_h * 3];
 
@@ -177,16 +193,20 @@ int main() {
 			Vector3 ray_dir = cursor - renderer._cam->_eyepos;
 			ray_dir.normalize();
 
+			// check sphere intersect
+			float t;	// sphere hit t
+			if (sphereHit(sphere_o, sphere_r, Ray(cursor, ray_dir), (cursor - renderer._volume->_grid->_min_coord).length(), (cursor - renderer._volume->_grid->_max_coord).length(), t)) {
+
+			}
+
 			if (renderer.rayBBoxIntersection(renderer._volume->_grid->_min_coord, renderer._volume->_grid->_max_coord, cursor, ray_dir, tmin, tmax)) {
 				if (tmin > 0) {
-					//std::cout << "tmin: " << tmin << ", tmax: " << tmax << std::endl;
 					stride = (tmax - tmin) / (num_samples + 1);
 					for (int n = 0; n < num_samples; n++) {
-							/* Use back-to-front compositing */
-						//sample_pos = cursor + ray_dir*tmin + (n + 1)*stride*ray_dir;
+						/* Use back-to-front compositing */
 						sample_pos = cursor + ray_dir*tmax - (n + 1)*stride*ray_dir;
-						// interpolate
-						//int index = sample_pos.x + sample_pos.y*renderer._volume->_grid->_xdim + sample_pos.z*renderer._volume->_grid->_xdim*renderer._volume->_grid->_ydim;
+						float l_T = 1.0;
+
 						if (sample_pos.x > 0 && sample_pos.x < xdim && sample_pos.y > 0 && sample_pos.y < ydim && sample_pos.z < xdim && sample_pos.z > 0) {
 							density = trilinearInterp(D, xdim, ydim, zdim, sample_pos.x, sample_pos.y, sample_pos.z);
 
@@ -198,20 +218,17 @@ int main() {
 								float l_stride = light_ray.length() / (num_light_samples + 1);
 								light_ray.normalize();
 
-								float l_T = 1.0;
 								for (int j = 0; j < num_light_samples; j++) {
 									// compute the radiance at the sample point
-									//Vector3 l_sample_pos = renderer._lights[0]->pos + j*l_stride*light_ray;
 									Vector3 l_sample_pos = sample_pos - j*l_stride*light_ray;
 									if (l_sample_pos.x > 0 && l_sample_pos.x < grid_x && l_sample_pos.y > 0 && l_sample_pos.y < grid_y && l_sample_pos.z > 0 && l_sample_pos.z < grid_z) {
 										int l_index = l_sample_pos.x + l_sample_pos.y*renderer._volume->_grid->_xdim + l_sample_pos.z*renderer._volume->_grid->_xdim*renderer._volume->_grid->_ydim;
 										float l_density = trilinearInterp(D, xdim, ydim, zdim, l_sample_pos.x, l_sample_pos.y, l_sample_pos.z);
-										//l_T *= 1.0 - renderer._volume->_oa*l_stride*l_density;
 										l_T *= std::exp(-renderer._volume->_oa*density*l_stride); // T = e^(-k(t)*dx)
 									}
 								}
-								float Li = renderer._lights[0]->intensity * l_T;	// light radiance at sampled position
-								Lo += Li*T;
+								float Li = renderer._lights[0]->intensity * (1.0 - l_T);	// light radiance at sampled position
+								Lo += Li*(1.0 - T);
 							}
 						}
 					}
