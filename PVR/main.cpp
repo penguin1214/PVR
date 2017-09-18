@@ -131,13 +131,13 @@ int main() {
 
 	renderer.num_file = 0;
 	renderer._volume->_grid->setSize(grid_x, grid_y, grid_z);
-	renderer._volume->setCoefficent(0.3, 1, 1);
+	renderer._volume->setCoefficent(0.008, 1, 1);
 
 	PointLight *pl = new PointLight();
 	renderer._lights.push_back(pl);
 	/*===========================================Set Camera================================================*/
-	Vector3 lookAt(0, 0, 0);
-	Vector3 eyepos(0, 0, -100);
+	Vector3 lookAt(100, 300, 100);
+	Vector3 eyepos(100, 300, -100);
 	double angle = 0;
 	// rotate camera according to angle
 	eyepos -= lookAt;
@@ -160,13 +160,14 @@ int main() {
 
 	renderer.setCamera(eyepos, lookAt, right, forward, up, angle);
 
-	//const double fovy = PI*0.25;	// 90 deg
-	const double dis = 80;
-	renderer._cam->_film->setDis(dis);
+	const double fovy = PI*0.5;	// 90 deg
+	const double dis = 95;
+	float aspr = 4.0 / 3.0;
+	renderer._cam->_film->setFovAndDis(fovy, dis, aspr);
 	/*=========================================== Set Sphere ================================================*/
-	Vector3 sphere_o(0, 0, 0);
-	float sphere_r = 10;
-	Vector3 sphere_color(1.0, 1.0, 0.0);
+	Vector3 sphere_o(100, 300, 100);
+	float sphere_r = 20;
+	Vector3 sphere_color(0.3, 0.3, 0.0);
 	/*=========================================== Render ================================================*/
 	float *image = new float[renderer._cam->_film->_w * renderer._cam->_film->_h * 3];
 
@@ -175,7 +176,7 @@ int main() {
 	renderer._volume->_grid->_max_coord = Vector3(grid_x - 1, grid_y - 1, grid_z - 1);
 
 	// ray marching
-	int num_samples = 50;
+	int num_samples = 200;
 	int num_light_samples = 50;
 	float u, v;
 	float tmin, tmax;
@@ -187,17 +188,16 @@ int main() {
 	int xdim = grid_x; int ydim = grid_y; int zdim = grid_z;
 
 	for (int y = 0; y < renderer._cam->_film->_h; y++) {
-		v = 0.5 - y / renderer._cam->_film->_h;
+		v = 0.5 - float(y) / float(renderer._cam->_film->_h);
 		std::cout << (float)y / float(renderer._cam->_film->_h) << std::endl;
 		for (int x = 0; x < renderer._cam->_film->_w; x++) {
-			u = -0.5 + x / renderer._cam->_film->_w;
+			u = -0.5 + float(x) / float(renderer._cam->_film->_w);
 
 			float T = 1.0;	// transparency
 			Vector3 Lo(0.0);
 
 			// pixel pos
 			Vector3 cursor = renderer._cam->_eyepos + renderer._cam->_forward*renderer._cam->_film->_nearPlaneDistance + renderer._cam->_right*u*renderer._cam->_film->_w + renderer._cam->_up*v*renderer._cam->_film->_h;
-
 			Vector3 ray_dir = cursor - renderer._cam->_eyepos;
 			ray_dir.normalize();
 
@@ -205,16 +205,66 @@ int main() {
 			bool has_surface = sphereHit(sphere_o, sphere_r, Ray(cursor, ray_dir), 0, 1000, rec);
 
 			// only intersect sphere
-			Ray r_scnd(rec.p, renderer._lights[0]->pos - rec.p);
-			float temp_cos = r_scnd.direction.dot(rec.norm);
-			if (temp_cos > 0) {
-				Lo += temp_cos * renderer._lights[0]->color * sphere_color;
-			}
+			/*if (has_surface) {
+				Ray r_scnd(rec.p, renderer._lights[0]->pos - rec.p);
+				float temp_cos = r_scnd.direction.dot(rec.norm);
+				std::cout << rec.p << std::endl;
+				if (temp_cos > 0) {
+					Lo += temp_cos * renderer._lights[0]->color * sphere_color;
+				}
+			}*/
 
-#if 0
 			if (renderer.rayBBoxIntersection(renderer._volume->_grid->_min_coord, renderer._volume->_grid->_max_coord, cursor, ray_dir, tmin, tmax)) {
+
+				//if (has_surface) tmax = rec.t;
+
 				if (tmin > 0) {
 					stride = (tmax - tmin) / (num_samples + 1);
+#if 0
+
+					// n = 0;
+					sample_pos = cursor + ray_dir*tmax - stride*ray_dir;
+					float l_T = 1.0;
+					Vector3 light_ray = sample_pos - renderer._lights[0]->pos;
+					float l_stride = light_ray.length() / (num_light_samples + 1);
+					light_ray.normalize();
+
+					for (int j = 0; j < num_light_samples; j++) {
+						// compute the radiance at the sample point
+						Vector3 l_sample_pos = sample_pos - j*l_stride*light_ray;
+						if (l_sample_pos.x > 0 && l_sample_pos.x < grid_x && l_sample_pos.y > 0 && l_sample_pos.y < grid_y && l_sample_pos.z > 0 && l_sample_pos.z < grid_z) {
+							int l_index = l_sample_pos.x + l_sample_pos.y*renderer._volume->_grid->_xdim + l_sample_pos.z*renderer._volume->_grid->_xdim*renderer._volume->_grid->_ydim;
+							float l_density = trilinearInterp(D, xdim, ydim, zdim, l_sample_pos.x, l_sample_pos.y, l_sample_pos.z);
+							l_T *= std::exp(-renderer._volume->_oa*l_density*l_stride); // T = e^(-k(t)*dx)
+						}
+					}
+
+					if (sample_pos.x > 0 && sample_pos.x < xdim && sample_pos.y > 0 && sample_pos.y < ydim && sample_pos.z < xdim && sample_pos.z > 0) {
+						density = trilinearInterp(D, xdim, ydim, zdim, sample_pos.x, sample_pos.y, sample_pos.z);
+
+						if (density > 0) {
+							//T *= 1.0 - density * stride *renderer._volume->_oa;
+							T *= std::exp(-renderer._volume->_oa*density*stride);
+						}
+					}
+
+					Vector3 Li(0.0);
+					Li = renderer._lights[0]->color * (1.0 - l_T);	// light radiance at sampled position
+
+					if (has_surface) {
+						Ray r_scnd(rec.p, renderer._lights[0]->pos - rec.p);
+						r_scnd.direction.normalize(); rec.norm.normalize();
+						float temp_cos = r_scnd.direction.dot(rec.norm);
+						if (temp_cos > 0) {
+							Lo += temp_cos * Li * sphere_color;
+						}
+					}
+					else {
+						Lo += Li*(1.0 - T);
+					}
+
+#endif
+					// n > 0
 					for (int n = 0; n < num_samples; n++) {
 						/* Use back-to-front compositing */
 						sample_pos = cursor + ray_dir*tmax - (n + 1)*stride*ray_dir;
@@ -222,6 +272,9 @@ int main() {
 
 						if (sample_pos.x > 0 && sample_pos.x < xdim && sample_pos.y > 0 && sample_pos.y < ydim && sample_pos.z < xdim && sample_pos.z > 0) {
 							density = trilinearInterp(D, xdim, ydim, zdim, sample_pos.x, sample_pos.y, sample_pos.z);
+
+							float tmp_d = sqrt(pow(sample_pos.x - sphere_o.x, 2) + pow(sample_pos.y - sphere_o.y, 2) + pow(sample_pos.z - sphere_o.z, 2));
+							if (tmp_d < sphere_r) break;
 
 							if (density > 0) {
 								//T *= 1.0 - density * stride *renderer._volume->_oa;
@@ -237,20 +290,34 @@ int main() {
 									if (l_sample_pos.x > 0 && l_sample_pos.x < grid_x && l_sample_pos.y > 0 && l_sample_pos.y < grid_y && l_sample_pos.z > 0 && l_sample_pos.z < grid_z) {
 										int l_index = l_sample_pos.x + l_sample_pos.y*renderer._volume->_grid->_xdim + l_sample_pos.z*renderer._volume->_grid->_xdim*renderer._volume->_grid->_ydim;
 										float l_density = trilinearInterp(D, xdim, ydim, zdim, l_sample_pos.x, l_sample_pos.y, l_sample_pos.z);
-										l_T *= std::exp(-renderer._volume->_oa*density*l_stride); // T = e^(-k(t)*dx)
+										l_T *= std::exp(-renderer._volume->_oa*l_density*l_stride); // T = e^(-k(t)*dx)
 									}
 								}
-								float Li = renderer._lights[0]->intensity * (1.0 - l_T);	// light radiance at sampled position
+								Vector3 Li = renderer._lights[0]->intensity * (1.0 - l_T);	// light radiance at sampled position
 								Lo += Li*(1.0 - T);
 							}
+						}
+					}
+
+					if (has_surface) {
+						Ray r_scnd(rec.p, renderer._lights[0]->pos - rec.p);
+						float temp_cos = r_scnd.direction.dot(rec.norm);
+						if (temp_cos > 0) {
+							Lo += temp_cos * renderer._lights[0]->color * sphere_color;
 						}
 					}
 				}
 			}
 			else {
-				Lo = 0;
+				if (has_surface) {
+					Ray r_scnd(rec.p, renderer._lights[0]->pos - rec.p);
+					float temp_cos = r_scnd.direction.dot(rec.norm);
+					if (temp_cos > 0) {
+						Lo += temp_cos * renderer._lights[0]->color * sphere_color;
+					}
+				}
 			}
-#endif
+
 			image[3 * (y*(int)renderer._cam->_film->_w + x) + 0] = Lo.x;
 			image[3 * (y*(int)renderer._cam->_film->_w + x) + 1] = Lo.y;
 			image[3 * (y*(int)renderer._cam->_film->_w + x) + 2] = Lo.z;

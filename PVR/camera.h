@@ -16,7 +16,7 @@ public:
 	Film() {}
 	Film(double wid, double hei) :_w(wid), _h(hei) {}
 
-	double _w, _h;	// film size
+	int _w, _h;	// film size
 	double _vfov;
 	double _nearPlaneDistance;
 
@@ -28,6 +28,7 @@ public:
 		_vfov = fov; _nearPlaneDistance = dis;
 		_h = 2 * _nearPlaneDistance*tan(fov / 2);
 		_w = _h * aspr;
+		std::cout << _w << ", " << _h << std::endl;
 	}
 	void setSize(int w, int h) {
 		_w = w; _h = h;
