@@ -136,8 +136,8 @@ int main() {
 	PointLight *pl = new PointLight();
 	renderer._lights.push_back(pl);
 	/*===========================================Set Camera================================================*/
-	Vector3 lookAt(0, 50, 1);
-	Vector3 eyepos(0, 50, -100);
+	Vector3 lookAt(0, 0, 0);
+	Vector3 eyepos(0, 0, -100);
 	double angle = 0;
 	// rotate camera according to angle
 	eyepos -= lookAt;
@@ -193,7 +193,7 @@ int main() {
 			u = -0.5 + x / renderer._cam->_film->_w;
 
 			float T = 1.0;	// transparency
-			float Lo = 0;
+			Vector3 Lo(0.0);
 
 			// pixel pos
 			Vector3 cursor = renderer._cam->_eyepos + renderer._cam->_forward*renderer._cam->_film->_nearPlaneDistance + renderer._cam->_right*u*renderer._cam->_film->_w + renderer._cam->_up*v*renderer._cam->_film->_h;
@@ -201,6 +201,17 @@ int main() {
 			Vector3 ray_dir = cursor - renderer._cam->_eyepos;
 			ray_dir.normalize();
 
+			hit_record rec;
+			bool has_surface = sphereHit(sphere_o, sphere_r, Ray(cursor, ray_dir), 0, 1000, rec);
+
+			// only intersect sphere
+			Ray r_scnd(rec.p, renderer._lights[0]->pos - rec.p);
+			float temp_cos = r_scnd.direction.dot(rec.norm);
+			if (temp_cos > 0) {
+				Lo += temp_cos * renderer._lights[0]->color * sphere_color;
+			}
+
+#if 0
 			if (renderer.rayBBoxIntersection(renderer._volume->_grid->_min_coord, renderer._volume->_grid->_max_coord, cursor, ray_dir, tmin, tmax)) {
 				if (tmin > 0) {
 					stride = (tmax - tmin) / (num_samples + 1);
@@ -239,10 +250,10 @@ int main() {
 			else {
 				Lo = 0;
 			}
-			Lo /= 255;
-			image[3 * (y*(int)renderer._cam->_film->_w + x) + 0] = Lo;
-			image[3 * (y*(int)renderer._cam->_film->_w + x) + 1] = Lo;
-			image[3 * (y*(int)renderer._cam->_film->_w + x) + 2] = Lo;
+#endif
+			image[3 * (y*(int)renderer._cam->_film->_w + x) + 0] = Lo.x;
+			image[3 * (y*(int)renderer._cam->_film->_w + x) + 1] = Lo.y;
+			image[3 * (y*(int)renderer._cam->_film->_w + x) + 2] = Lo.z;
 		}
 	}
 	/*for (int z = 0; z < grid_z; z++) {

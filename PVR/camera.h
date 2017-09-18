@@ -8,7 +8,7 @@ public:
 	Vector3 origin;
 	Vector3 direction;
 
-	Ray(Vector3 o, Vector3 d) : origin(o), direction(d) {}
+	Ray(Vector3 o, Vector3 d) : origin(o) { d.normalize(); direction = d; }
 };
 
 class Film {
