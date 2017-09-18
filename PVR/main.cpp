@@ -37,6 +37,13 @@ const int Presets::TOTAL_SAMPLES = 89 / Presets::SAMPLE_STEP;
 double Presets::dt = 1.0 / 100.0;
 const double PI = 3.14159265359;
 
+struct hit_record {
+	float t;
+	Vector3 p;
+	Vector3 norm;
+	//material* mat_ptr;
+};
+
 
 template<class T>
 T* loadBinary(const char * fn, int &gridx, int &gridy, int &gridz) {
@@ -88,17 +95,20 @@ float trilinearInterp(float *data, int gridx, int gridy, int gridz, float x, flo
 	return c;
 }
 
-bool sphereHit(Vector3 center, float radius, Ray &r, float t_min, float t_max, float &t) {
+bool sphereHit(Vector3 center, float radius, Ray &r, float t_min, float t_max, hit_record &rec) {
 	Vector3 oc = r.origin - center;
 	float a = r.direction.dot(r.direction);
-	float b = oc.dot(r.direction);
+	float b = 2 * oc.dot(r.direction);
 	float c = oc.dot(oc) - radius*radius;
-	float disc = b*b - a*c;
+	float disc = b*b - 4 * a*c;
 	if ((sqrt(disc)) >= 0) {
 		// calculate hit point
 		float temp = (-b - sqrt(b * b - a * c)) / a;
 		if (temp < t_max && temp > t_min) {
-			t = temp;
+			rec.t = temp;
+			rec.p = r.origin + r.direction*temp;
+			rec.norm = rec.p - center;
+			rec.norm.normalize();
 			return true;
 		}
 	}
@@ -126,10 +136,8 @@ int main() {
 	PointLight *pl = new PointLight();
 	renderer._lights.push_back(pl);
 	/*===========================================Set Camera================================================*/
-	//Vector3 lookAt(2, 4, 2);
-	//Vector3 eyepos(2, 2, 7.5);
 	Vector3 lookAt(0, 50, 1);
-	Vector3 eyepos(0, 0, -100);
+	Vector3 eyepos(0, 50, -100);
 	double angle = 0;
 	// rotate camera according to angle
 	eyepos -= lookAt;
@@ -139,10 +147,9 @@ int main() {
 	Vector3 up(0.0, 1.0, 0.0);
 	Vector3 forward = lookAt - eyepos;
 	forward.normalize();
-	//Vector3 right = forward.cross(&up);
-	Vector3 right = Vector3(1, 0, 0);
+	Vector3 right = up.cross(&forward);
 	right.normalize();
-	//up = right.cross(&forward);
+	up = forward.cross(&right);
 	up.normalize();
 
 	std::cout << "lookat: " << lookAt << std::endl;
@@ -157,8 +164,9 @@ int main() {
 	const double dis = 80;
 	renderer._cam->_film->setDis(dis);
 	/*=========================================== Set Sphere ================================================*/
-	Vector3 sphere_o(100, 200, 100);
-	float sphere_r = 80;
+	Vector3 sphere_o(0, 0, 0);
+	float sphere_r = 10;
+	Vector3 sphere_color(1.0, 1.0, 0.0);
 	/*=========================================== Render ================================================*/
 	float *image = new float[renderer._cam->_film->_w * renderer._cam->_film->_h * 3];
 
@@ -167,8 +175,8 @@ int main() {
 	renderer._volume->_grid->_max_coord = Vector3(grid_x - 1, grid_y - 1, grid_z - 1);
 
 	// ray marching
-	int num_samples = 200;
-	int num_light_samples = 200;
+	int num_samples = 50;
+	int num_light_samples = 50;
 	float u, v;
 	float tmin, tmax;
 	float stride;
@@ -192,12 +200,6 @@ int main() {
 
 			Vector3 ray_dir = cursor - renderer._cam->_eyepos;
 			ray_dir.normalize();
-
-			// check sphere intersect
-			float t;	// sphere hit t
-			if (sphereHit(sphere_o, sphere_r, Ray(cursor, ray_dir), (cursor - renderer._volume->_grid->_min_coord).length(), (cursor - renderer._volume->_grid->_max_coord).length(), t)) {
-
-			}
 
 			if (renderer.rayBBoxIntersection(renderer._volume->_grid->_min_coord, renderer._volume->_grid->_max_coord, cursor, ray_dir, tmin, tmax)) {
 				if (tmin > 0) {
