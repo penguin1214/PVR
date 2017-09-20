@@ -45,7 +45,7 @@ public:
 
 class PointLight : public Light {
 public:
-	PointLight() { pos = Vector3(100, 500, 0); color = Vector3(1.0); intensity = 1.0; }
+	PointLight() { pos = Vector3(0.5, 0.5, -0.1); color = Vector3(1.0); intensity = 1.0; }
 };
 
 class Renderer {
@@ -63,27 +63,15 @@ public:
 	int num_file;
 
 
-	Renderer() {
-		_cam = new Camera();
-		_cam->_film->_w = 100; _cam->_film->_h = 100;
-		_volume = new BlackBody();
-	}
-
-	Renderer(const int x_pixels, const int y_pixels) {
-		_cam = new Camera();
-		_cam->_film->_w = x_pixels; _cam->_film->_h = y_pixels;
-		_volume = new BlackBody();
-	}
-
+	Renderer() { _cam = nullptr; _volume = nullptr; }
 	~Renderer() {}
 
-	void setCamera(Vector3 eyep, Vector3 at, Vector3 r, Vector3 f, Vector3 u, double ang) {
+	void setCamera(Vector3 eyep, Vector3 at, Vector3 r, Vector3 f, Vector3 u) {
 		_cam->_eyepos = eyep;
 		_cam->_look_at = at;
 		_cam->_up = u;
 		_cam->_right = r;
 		_cam->_forward = f;
-		_cam->_angle = ang;
 	}
 
 	bool rayBBoxIntersection(Vector3 minbox, Vector3 maxbox, const Vector3 &rayOrigin, const Vector3 &rayDirection, float &tmin, float &tmax);

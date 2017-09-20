@@ -6,36 +6,10 @@
 #include <algorithm>
 #include <cmath>
 
+#include "core.h"
 #include "util.h"
 #include "Renderer.h"
 #include "volume.h"
-
-
-struct Presets {
-	// sampling
-	static const int TOTAL_SAMPLES;
-	static const int SAMPLE_STEP;
-	static const int SAMPLE_STEP_QUALITY = 2;
-
-	// grid
-	static const int GRID_X = 30;
-	static const int GRID_Y = 60;
-	static const int GRID_Z = 30;
-
-	// frame
-	static const int FRAME_X = 600;
-	static const int FRAME_Y = 400;
-
-	static double dt;
-	static const bool QUALITY_ROOM = false; //def how the walls radiance should be calculated
-
-	static const double PI;;
-};
-
-const int Presets::SAMPLE_STEP = 15;
-const int Presets::TOTAL_SAMPLES = 89 / Presets::SAMPLE_STEP;
-double Presets::dt = 1.0 / 100.0;
-const double PI = 3.14159265359;
 
 struct hit_record {
 	float t;
@@ -116,68 +90,48 @@ bool sphereHit(Vector3 center, float radius, Ray &r, float t_min, float t_max, h
 }
 
 int main() {
+	/*===========================================Read File================================================*/
 	int num_file = 0;
 	int grid_x, grid_y, grid_z;
-	/*===========================================Read File================================================*/
 	std::string str_filename = "car_data0200.bin";
 	const char* filename = str_filename.c_str();
 
 	float *D = loadBinary<float>(filename, grid_x, grid_y, grid_z);	// 199, 399, 199
 	std::cout << "Read file " << filename << "  done." << std::endl;
-
-	int grid_size = grid_x * grid_y * grid_z;
-	/*===========================================Renderer Set================================================*/
-	Renderer renderer(Presets::FRAME_X, Presets::FRAME_Y);
-
+	/*===========================================Renderer Init================================================*/
+	Renderer renderer;
 	renderer.num_file = 0;
-	renderer._volume->_grid->setSize(grid_x, grid_y, grid_z);
-	renderer._volume->setCoefficent(0.008, 1, 1);
+	/*===========================================Set Grid================================================*/
+	int grid_size = grid_x * grid_y * grid_z;
+	Grid *grid = new Grid();
+	grid->_data = D;
+	grid->setSize(grid_x, grid_y, grid_z);
+	/*===========================================Set Volume================================================*/
+	renderer._volume = new BlackBody(grid);
+	renderer._volume->setCoefficent(3, 1, 1);
+	// bbox
+	Vector3 min_coord(0.0); Vector3 max_coord(grid_x-1, grid_y-1, grid_z-1);
+	renderer._volume->setBox(min_coord, max_coord);
+	/*===========================================Set Camera================================================*/
+	Vector3 lookAt(0.5, 0.5, 0.5); Vector3 eyepos(0.5, 0.5, -1.0); Vector3 up(0.0, 1.0, 0.0);
+	renderer._cam = new Camera(lookAt, eyepos, up);
 
+	const float fovy = M_PI*0.3;	// 90 deg
+	const float dis = 0.5;
+	const float aspr = (float)Presets::RESOLUTION_X / (float)Presets::RESOLUTION_Y;
+
+	renderer._cam->setFovDis(fovy, dis, aspr);
+	/*===========================================Light================================================*/
 	PointLight *pl = new PointLight();
 	renderer._lights.push_back(pl);
-	/*===========================================Set Camera================================================*/
-	Vector3 lookAt(100, 300, 100);
-	Vector3 eyepos(100, 300, -100);
-	double angle = 0;
-	// rotate camera according to angle
-	eyepos -= lookAt;
-	eyepos.rotY(6.28 * angle);
-	eyepos += lookAt;
-
-	Vector3 up(0.0, 1.0, 0.0);
-	Vector3 forward = lookAt - eyepos;
-	forward.normalize();
-	Vector3 right = up.cross(&forward);
-	right.normalize();
-	up = forward.cross(&right);
-	up.normalize();
-
-	std::cout << "lookat: " << lookAt << std::endl;
-	std::cout << "eyepos: " << eyepos << std::endl;
-	std::cout << "up: " << up << std::endl;
-	std::cout << "forward: " << forward << std::endl;
-	std::cout << "right : " << right << std::endl;
-
-	renderer.setCamera(eyepos, lookAt, right, forward, up, angle);
-
-	const double fovy = PI*0.5;	// 90 deg
-	const double dis = 95;
-	float aspr = 4.0 / 3.0;
-	renderer._cam->_film->setFovAndDis(fovy, dis, aspr);
-	/*=========================================== Set Sphere ================================================*/
-	Vector3 sphere_o(100, 300, 100);
-	float sphere_r = 20;
+	/*=========================================== Sphere ================================================*/
+	Vector3 sphere_o(0.5, 0.5, 0.5);
+	float sphere_r = 0.2;
 	Vector3 sphere_color(0.3, 0.3, 0.0);
 	/*=========================================== Render ================================================*/
-	float *image = new float[renderer._cam->_film->_w * renderer._cam->_film->_h * 3];
-
-	// bbox
-	renderer._volume->_grid->_min_coord = Vector3(0.0);
-	renderer._volume->_grid->_max_coord = Vector3(grid_x - 1, grid_y - 1, grid_z - 1);
+	float *image = new float[Presets::RESOLUTION_X * Presets::RESOLUTION_Y * 3];
 
 	// ray marching
-	int num_samples = 200;
-	int num_light_samples = 50;
 	float u, v;
 	float tmin, tmax;
 	float stride;
@@ -187,17 +141,17 @@ int main() {
 
 	int xdim = grid_x; int ydim = grid_y; int zdim = grid_z;
 
-	for (int y = 0; y < renderer._cam->_film->_h; y++) {
-		v = 0.5 - float(y) / float(renderer._cam->_film->_h);
-		std::cout << (float)y / float(renderer._cam->_film->_h) << std::endl;
-		for (int x = 0; x < renderer._cam->_film->_w; x++) {
-			u = -0.5 + float(x) / float(renderer._cam->_film->_w);
+	for (int y = 0; y < Presets::RESOLUTION_Y; y++) {
+		v = 0.5 - float(y) / float(Presets::RESOLUTION_Y);
+		std::cout << (float)y / float(Presets::RESOLUTION_Y) << std::endl;
+		for (int x = 0; x < Presets::RESOLUTION_X; x++) {
+			u = -0.5 + float(x) / float(Presets::RESOLUTION_X);
 
 			float T = 1.0;	// transparency
 			Vector3 Lo(0.0);
 
 			// pixel pos
-			Vector3 cursor = renderer._cam->_eyepos + renderer._cam->_forward*renderer._cam->_film->_nearPlaneDistance + renderer._cam->_right*u*renderer._cam->_film->_w + renderer._cam->_up*v*renderer._cam->_film->_h;
+			Vector3 cursor = renderer._cam->_eyepos + renderer._cam->_forward*renderer._cam->_nearPlaneDistance + u*renderer._cam->_horizontal + v*renderer._cam->_vertical;
 			Vector3 ray_dir = cursor - renderer._cam->_eyepos;
 			ray_dir.normalize();
 
@@ -214,22 +168,22 @@ int main() {
 				}
 			}*/
 
-			if (renderer.rayBBoxIntersection(renderer._volume->_grid->_min_coord, renderer._volume->_grid->_max_coord, cursor, ray_dir, tmin, tmax)) {
+			if (renderer.rayBBoxIntersection(renderer._volume->_min_coord, renderer._volume->_max_coord, cursor, ray_dir, tmin, tmax)) {
 
 				//if (has_surface) tmax = rec.t;
 
 				if (tmin > 0) {
-					stride = (tmax - tmin) / (num_samples + 1);
+					stride = (tmax - tmin) / (Presets::NUM_RAY_SAMPLES + 1);
 #if 0
 
 					// n = 0;
 					sample_pos = cursor + ray_dir*tmax - stride*ray_dir;
 					float l_T = 1.0;
 					Vector3 light_ray = sample_pos - renderer._lights[0]->pos;
-					float l_stride = light_ray.length() / (num_light_samples + 1);
+					float l_stride = light_ray.length() / (Presets::NUM_LIGHT_RAY_SAMPLES + 1);
 					light_ray.normalize();
 
-					for (int j = 0; j < num_light_samples; j++) {
+					for (int j = 0; j < Presets::NUM_LIGHT_RAY_SAMPLES; j++) {
 						// compute the radiance at the sample point
 						Vector3 l_sample_pos = sample_pos - j*l_stride*light_ray;
 						if (l_sample_pos.x > 0 && l_sample_pos.x < grid_x && l_sample_pos.y > 0 && l_sample_pos.y < grid_y && l_sample_pos.z > 0 && l_sample_pos.z < grid_z) {
@@ -265,13 +219,17 @@ int main() {
 
 #endif
 					// n > 0
-					for (int n = 0; n < num_samples; n++) {
+					for (int n = 0; n < Presets::NUM_RAY_SAMPLES; n++) {
 						/* Use back-to-front compositing */
 						sample_pos = cursor + ray_dir*tmax - (n + 1)*stride*ray_dir;
 						float l_T = 1.0;
 
-						if (sample_pos.x > 0 && sample_pos.x < xdim && sample_pos.y > 0 && sample_pos.y < ydim && sample_pos.z < xdim && sample_pos.z > 0) {
-							density = trilinearInterp(D, xdim, ydim, zdim, sample_pos.x, sample_pos.y, sample_pos.z);
+						if (sample_pos.x > renderer._volume->_min_coord.x && sample_pos.x < renderer._volume->_max_coord.x
+							&& sample_pos.y > renderer._volume->_min_coord.y && sample_pos.y < renderer._volume->_max_coord.y
+							&& sample_pos.z > renderer._volume->_min_coord.z && sample_pos.z < renderer._volume->_max_coord.z) {
+
+							Vector3 sample_idx = renderer._volume->pos_map(sample_pos);
+							density = trilinearInterp(D, xdim, ydim, zdim, sample_idx.x, sample_idx.y, sample_idx.z);
 
 							float tmp_d = sqrt(pow(sample_pos.x - sphere_o.x, 2) + pow(sample_pos.y - sphere_o.y, 2) + pow(sample_pos.z - sphere_o.z, 2));
 							if (tmp_d < sphere_r) break;
@@ -281,15 +239,18 @@ int main() {
 								T *= std::exp(-renderer._volume->_oa*density*stride);
 
 								Vector3 light_ray = sample_pos - renderer._lights[0]->pos;
-								float l_stride = light_ray.length() / (num_light_samples + 1);
+								float l_stride = light_ray.length() / (Presets::NUM_LIGHT_RAY_SAMPLES + 1);
 								light_ray.normalize();
 
-								for (int j = 0; j < num_light_samples; j++) {
+								for (int j = 0; j < Presets::NUM_LIGHT_RAY_SAMPLES; j++) {
 									// compute the radiance at the sample point
 									Vector3 l_sample_pos = sample_pos - j*l_stride*light_ray;
-									if (l_sample_pos.x > 0 && l_sample_pos.x < grid_x && l_sample_pos.y > 0 && l_sample_pos.y < grid_y && l_sample_pos.z > 0 && l_sample_pos.z < grid_z) {
-										int l_index = l_sample_pos.x + l_sample_pos.y*renderer._volume->_grid->_xdim + l_sample_pos.z*renderer._volume->_grid->_xdim*renderer._volume->_grid->_ydim;
-										float l_density = trilinearInterp(D, xdim, ydim, zdim, l_sample_pos.x, l_sample_pos.y, l_sample_pos.z);
+									if (l_sample_pos.x > renderer._volume->_min_coord.x && l_sample_pos.x < renderer._volume->_max_coord.x
+										&& l_sample_pos.y > renderer._volume->_min_coord.y && l_sample_pos.y < renderer._volume->_max_coord.y
+										&& l_sample_pos.z > renderer._volume->_min_coord.z && l_sample_pos.z < renderer._volume->_max_coord.z) {
+
+										Vector3 l_sample_idx = renderer._volume->pos_map(l_sample_pos);
+										float l_density = trilinearInterp(D, xdim, ydim, zdim, l_sample_idx.x, l_sample_idx.y, l_sample_idx.z);
 										l_T *= std::exp(-renderer._volume->_oa*l_density*l_stride); // T = e^(-k(t)*dx)
 									}
 								}
@@ -318,9 +279,9 @@ int main() {
 				}
 			}
 
-			image[3 * (y*(int)renderer._cam->_film->_w + x) + 0] = Lo.x;
-			image[3 * (y*(int)renderer._cam->_film->_w + x) + 1] = Lo.y;
-			image[3 * (y*(int)renderer._cam->_film->_w + x) + 2] = Lo.z;
+			image[3 * (y*(int)Presets::RESOLUTION_X + x) + 0] = Lo.x;
+			image[3 * (y*(int)Presets::RESOLUTION_X + x) + 1] = Lo.y;
+			image[3 * (y*(int)Presets::RESOLUTION_X + x) + 2] = Lo.z;
 		}
 	}
 	/*for (int z = 0; z < grid_z; z++) {

@@ -3,20 +3,22 @@
 #include <algorithm>
 
 #include "util.h"
+#include "core.h"
 
 void Renderer::saveImage(float *image) {
 	char filename[2048];
 	sprintf(filename, "smoke.ppm", num_file++);
 	std::ofstream ofs(filename, std::ios::out | std::ios::binary);
-	ofs << "P6\n" << _cam->_film->_w << " " << _cam->_film->_h << "\n255\n";
-	for (int j = 0; j < _cam->_film->_h; j++)  // loop over pixels, write RGB values
-		for (int i = 0; i < _cam->_film->_w; i++) {
-			int index = j*_cam->_film->_w + i;
+	ofs << "P6\n" << Presets::RESOLUTION_X << " " << Presets::RESOLUTION_Y << "\n255\n";
+	for (int j = 0; j < Presets::RESOLUTION_Y; j++)  // loop over pixels, write RGB values
+		for (int i = 0; i < Presets::RESOLUTION_X; i++) {
+			int index = j*Presets::RESOLUTION_X + i;
 			ofs << (unsigned char)((std::min)(1.0f, image[index * 3 + 0]) * 255);
 			ofs << (unsigned char)((std::min)(1.0f, image[index * 3 + 1]) * 255);
 			ofs << (unsigned char)((std::min)(1.0f, image[index * 3 + 2]) * 255);
 
 		}
+	ofs.flush();
 	printf("Saved image \n");
 }
 

@@ -31,6 +31,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
+    <ClInclude Include="core.h" />
     <ClInclude Include="grid.h" />
     <ClInclude Include="interpolate.h" />
     <ClInclude Include="Renderer.h" />

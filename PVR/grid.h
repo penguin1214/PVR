@@ -14,6 +14,7 @@ public:
 		_trans = new double[16]; _itrans = new double[16];
 	}
 
+	float *_data;
 	int _xdim = 30;
 	int _ydim = 60;
 	int _zdim = 30;
