@@ -28,7 +28,7 @@ public:
 	double *_trans, *_itrans;	// world <-> local transform
 
 	void setSize(int xd, int yd, int zd) { _xdim = xd; _ydim = yd; _zdim = zd; }
-	__host__ __device__ int indexAt(int i, int j, int k) const {
+	__host__ __device__ int gridIndexAt(int i, int j, int k) const {
 		return i + (_xdim)*j + (_xdim*_ydim*k);
 	}
 

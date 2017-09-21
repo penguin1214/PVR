@@ -62,6 +62,7 @@ float trilinearInterp(float *data, int gridx, int gridy, int gridz, float x, flo
 
 
 int main() {
+	/*===========================================Presets Initialize================================================*/
 	/*===========================================Read File================================================*/
 	int num_file = 0;
 	int grid_x, grid_y, grid_z;
@@ -82,8 +83,14 @@ int main() {
 	renderer._volume = new BlackBody(grid);
 	renderer._volume->setCoefficent(3, 1, 1);
 	// bbox
-	Vector3 min_coord(0.0); Vector3 max_coord(grid_x-1, grid_y-1, grid_z-1);
+	Vector3 min_coord(0.0); Vector3 max_coord(grid_x - 1, grid_y - 1, grid_z - 1);
 	renderer._volume->setBox(min_coord, max_coord);
+	// material
+	Vector3 v_ambient(0.0, 0.1, 0.1);
+	Vector3 v_diffuse(0.2);
+	Vector3 v_specular(0.3);
+	Material *vmat = new Material(v_ambient, v_diffuse, v_specular, 32);
+	renderer._volume->_mat = vmat;
 	/*===========================================Set Camera================================================*/
 	Vector3 lookAt(0.5, 0.5, 0.5); Vector3 eyepos(0.5, 0.5, -1.0); Vector3 up(0.0, 1.0, 0.0);
 	renderer._cam = new Camera(lookAt, eyepos, up);
@@ -96,6 +103,9 @@ int main() {
 	/*===========================================Light================================================*/
 	PointLight *pl = new PointLight();
 	renderer._lights.push_back(pl);
+
+	// global ambient
+	Vector3 g_ambient(0.0, 0.2, 0.2);
 	/*=========================================== Sphere ================================================*/
 	Vector3 sphere_o(0.3, 0.7, 0.3);
 	float sphere_r = 0.05;
@@ -121,6 +131,7 @@ int main() {
 
 	int xdim = grid_x; int ydim = grid_y; int zdim = grid_z;
 
+	Vector3 *gradient = renderer._volume->fetchGradient();
 	for (int y = 0; y < Presets::RESOLUTION_Y; y++) {
 		v = 0.5 - float(y) / float(Presets::RESOLUTION_Y);
 		std::cout << (float)y / float(Presets::RESOLUTION_Y) << std::endl;
@@ -177,8 +188,8 @@ int main() {
 								light_ray.normalize();
 
 								// check if blocked
-								hit_record tmp_rec;
-								if (sphere.intersect(Ray(sample_pos, light_ray), 0, 1000, tmp_rec)) break;	// no light
+								//hit_record tmp_rec;
+								//if (sphere.intersect(Ray(sample_pos, light_ray), 0, 1000, tmp_rec)) break;	// no light
 
 								for (int j = 0; j < Presets::NUM_LIGHT_RAY_SAMPLES; j++) {
 									// compute the radiance at the sample point
@@ -193,7 +204,20 @@ int main() {
 									}
 								}
 								Vector3 Li = renderer._lights[0]->intensity * (1.0 - l_T);	// light radiance at sampled position
-								Lo += Li*(1.0 - T);
+								// Blinn-Phong Shading
+								Vector3 R(0.0);
+								// ambient
+								R += renderer._volume->_mat->k_ambient * g_ambient;
+								// diffuse
+								Vector3 g = gradient[renderer._volume->_grid->gridIndexAt(sample_idx.x, sample_idx.y, sample_idx.z)];
+								R += renderer._volume->_mat->k_diffuse * Li * std::fmax(0, g.dot(light_ray));
+								// specular
+								Vector3 view_ray = Vector3(sample_pos - renderer._cam->_eyepos);
+								view_ray.normalize();
+								R += renderer._volume->_mat->k_specular * Li * pow(view_ray.dot(light_ray), renderer._volume->_mat->k_shine);
+
+								//Lo += Li*(1.0 - T);
+								Lo += R*(1.0 - T);
 							}
 						}
 					}
