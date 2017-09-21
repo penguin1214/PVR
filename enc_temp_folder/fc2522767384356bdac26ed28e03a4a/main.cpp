@@ -177,8 +177,8 @@ int main() {
 								light_ray.normalize();
 
 								// check if blocked
-								hit_record tmp_rec;
-								if (sphere.intersect(Ray(sample_pos, light_ray), 0, 1000, tmp_rec)) break;	// no light
+								//hit_record tmp_rec;
+								//if (sphere.intersect(Ray(sample_pos, light_ray), 0, 1000, tmp_rec)) break;	// no light
 
 								for (int j = 0; j < Presets::NUM_LIGHT_RAY_SAMPLES; j++) {
 									// compute the radiance at the sample point
