@@ -10,13 +10,7 @@
 #include "util.h"
 #include "Renderer.h"
 #include "volume.h"
-
-struct hit_record {
-	float t;
-	Vector3 p;
-	Vector3 norm;
-	//material* mat_ptr;
-};
+#include "shape.h"
 
 
 template<class T>
@@ -63,31 +57,9 @@ float trilinearInterp(float *data, int gridx, int gridy, int gridz, float x, flo
 	float c1 = c01*(1 - yd) + c11*yd;
 
 	float c = c0*(1 - zd) + c1*zd;
-	if (c > 1) {
-		std::cout << c << std::endl;
-	}
 	return c;
 }
 
-bool sphereHit(Vector3 center, float radius, Ray &r, float t_min, float t_max, hit_record &rec) {
-	Vector3 oc = r.origin - center;
-	float a = r.direction.dot(r.direction);
-	float b = 2 * oc.dot(r.direction);
-	float c = oc.dot(oc) - radius*radius;
-	float disc = b*b - 4 * a*c;
-	if ((sqrt(disc)) >= 0) {
-		// calculate hit point
-		float temp = (-b - sqrt(b * b - a * c)) / a;
-		if (temp < t_max && temp > t_min) {
-			rec.t = temp;
-			rec.p = r.origin + r.direction*temp;
-			rec.norm = rec.p - center;
-			rec.norm.normalize();
-			return true;
-		}
-	}
-	return false;
-}
 
 int main() {
 	/*===========================================Read File================================================*/
@@ -125,9 +97,16 @@ int main() {
 	PointLight *pl = new PointLight();
 	renderer._lights.push_back(pl);
 	/*=========================================== Sphere ================================================*/
-	Vector3 sphere_o(0.5, 0.5, 0.5);
-	float sphere_r = 0.2;
-	Vector3 sphere_color(0.3, 0.3, 0.0);
+	Vector3 sphere_o(0.3, 0.7, 0.3);
+	float sphere_r = 0.05;
+	Sphere sphere(sphere_o, sphere_r);
+	// bind material
+	Vector3 sphere_ambient(0.3, 0.3, 0.0);
+	Vector3 sphere_diffuse(0.2);
+	Vector3 sphere_specular(0.8);
+	int sphere_shine = 32;
+	Material *mat = new Material(sphere_ambient, sphere_diffuse, sphere_specular, sphere_shine);
+	sphere._mat = mat;
 	/*=========================================== Render ================================================*/
 	float *image = new float[Presets::RESOLUTION_X * Presets::RESOLUTION_Y * 3];
 
@@ -156,13 +135,12 @@ int main() {
 			ray_dir.normalize();
 
 			hit_record rec;
-			bool has_surface = sphereHit(sphere_o, sphere_r, Ray(cursor, ray_dir), 0, 1000, rec);
+			bool has_surface = sphere.intersect(Ray(cursor, ray_dir), 0, 1000, rec);
 
 			// only intersect sphere
 			/*if (has_surface) {
 				Ray r_scnd(rec.p, renderer._lights[0]->pos - rec.p);
 				float temp_cos = r_scnd.direction.dot(rec.norm);
-				std::cout << rec.p << std::endl;
 				if (temp_cos > 0) {
 					Lo += temp_cos * renderer._lights[0]->color * sphere_color;
 				}
@@ -170,11 +148,10 @@ int main() {
 
 			if (renderer.rayBBoxIntersection(renderer._volume->_min_coord, renderer._volume->_max_coord, cursor, ray_dir, tmin, tmax)) {
 
-				//if (has_surface) tmax = rec.t;
+				if (has_surface) tmax = rec.t;	// if has shape, update valid sample path
 
 				if (tmin > 0) {
 					stride = (tmax - tmin) / (Presets::NUM_RAY_SAMPLES + 1);
-#if 0
 
 					// n = 0;
 					sample_pos = cursor + ray_dir*tmax - stride*ray_dir;
@@ -210,14 +187,13 @@ int main() {
 						r_scnd.direction.normalize(); rec.norm.normalize();
 						float temp_cos = r_scnd.direction.dot(rec.norm);
 						if (temp_cos > 0) {
-							Lo += temp_cos * Li * sphere_color;
+							Lo += temp_cos * Li * sphere._mat->k_diffuse;
 						}
 					}
 					else {
 						Lo += Li*(1.0 - T);
 					}
 
-#endif
 					// n > 0
 					for (int n = 0; n < Presets::NUM_RAY_SAMPLES; n++) {
 						/* Use back-to-front compositing */
@@ -242,6 +218,10 @@ int main() {
 								float l_stride = light_ray.length() / (Presets::NUM_LIGHT_RAY_SAMPLES + 1);
 								light_ray.normalize();
 
+								// check if blocked
+								hit_record tmp_rec;
+								if (sphere.intersect(Ray(sample_pos, light_ray), 0, 1000, tmp_rec)) break;	// no light
+
 								for (int j = 0; j < Presets::NUM_LIGHT_RAY_SAMPLES; j++) {
 									// compute the radiance at the sample point
 									Vector3 l_sample_pos = sample_pos - j*l_stride*light_ray;
@@ -264,7 +244,7 @@ int main() {
 						Ray r_scnd(rec.p, renderer._lights[0]->pos - rec.p);
 						float temp_cos = r_scnd.direction.dot(rec.norm);
 						if (temp_cos > 0) {
-							Lo += temp_cos * renderer._lights[0]->color * sphere_color;
+							Lo += temp_cos * renderer._lights[0]->color * sphere._mat->k_diffuse;
 						}
 					}
 				}
@@ -274,7 +254,7 @@ int main() {
 					Ray r_scnd(rec.p, renderer._lights[0]->pos - rec.p);
 					float temp_cos = r_scnd.direction.dot(rec.norm);
 					if (temp_cos > 0) {
-						Lo += temp_cos * renderer._lights[0]->color * sphere_color;
+						Lo += temp_cos * renderer._lights[0]->color * sphere._mat->k_diffuse;
 					}
 				}
 			}

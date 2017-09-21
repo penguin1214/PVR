@@ -6,7 +6,7 @@
 
 struct Presets {
 	// sampling
-	static const int NUM_RAY_SAMPLES = 200;
+	static const int NUM_RAY_SAMPLES = 100;
 	static const int NUM_LIGHT_RAY_SAMPLES = 50;
 	static const int SAMPLE_STEP_QUALITY = 2;
 
