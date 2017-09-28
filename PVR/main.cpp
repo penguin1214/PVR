@@ -72,7 +72,7 @@ int main() {
 	/*===========================================Set Grid================================================*/
 	/*===========================================Set Volume================================================*/
 	/*===========================================Set Camera================================================*/
-	Vector3 lookAt(0.3, 0.5, 0.5); Vector3 eyepos(0.0); Vector3 up(0.0, 1.0, 0.0);
+	Vector3 lookAt(0.0, 0.0, -200.0); Vector3 eyepos(0.0); Vector3 up(0.0, 1.0, 0.0);
 	renderer._cam = new Camera(lookAt, eyepos, up);
 
 	const float fovy = M_PI*0.33;	// 60 deg
@@ -86,17 +86,17 @@ int main() {
 	// global ambient
 	//Vector3 g_ambient(0.0, 0.2, 0.2);
 	/*=========================================== Objects ================================================*/
-	Sphere *sphere1 = new Sphere(Vector3(0.0), 100.0);
+	Sphere *sphere1 = new Sphere(Vector3(0.0, 0.0, -400.0), 100.0);
 	Material *mat1 = new Material(Vector3(1.0, 1.0, 1.0), NULL, NULL, NULL);
 
-	Sphere *sphere2 = new Sphere(Vector3(-200.0, 100.0, -500.0), 100.0);
-	Material *mat2 = new Material(Vector3(0.0, 0.0, 0.0), NULL, NULL, NULL);
+	//Sphere *sphere2 = new Sphere(Vector3(-200.0, 100.0, -500.0), 100.0);
+	//Material *mat2 = new Material(Vector3(0.0, 0.0, 0.0), NULL, NULL, NULL);
 
-	Plane *plane3 = new Plane(Vector3(0.0, 1.0, 0.0), 300.0);
-	Material *_mat3 = new Material(Vector3(1.0, 1.0, 1.0), NULL, NULL, NULL);
+	//Plane *plane3 = new Plane(Vector3(0.0, 1.0, 0.0), 300.0);
+	//Material *_mat3 = new Material(Vector3(1.0, 1.0, 1.0), NULL, NULL, NULL);
 
 	// add shapes
-	renderer._shapes.push_back(sphere1); renderer._shapes.push_back(sphere2); renderer._shapes.push_back(plane3);
+	renderer._shapes.push_back(sphere1); /*renderer._shapes.push_back(sphere2); renderer._shapes.push_back(plane3);*/
 	/*=========================================== Photon Map ================================================*/
 	// single light source now
 	PointLight light = *renderer._lights[0];
@@ -115,9 +115,13 @@ int main() {
 		} while (x*x + y*y + z*z > 1.0);
 		Vector3 dir(x, y, z);
 		dir.normalize();
+
 		// photon tracing
-		Ray r(light.pos, dir);
-		renderer.photonTrace(r, p_power, 1, 0.0, 1000.0); // TODO
+		//Ray r(light.pos, dir);
+		Ray r(eyepos, dir);
+		renderer.photonTrace(r, p_power, 0); // TODO
+
+		num_cnt++;
 	}
 	/*=========================================== Render ================================================*/
 	float *image = new float[Presets::RESOLUTION_X * Presets::RESOLUTION_Y * 3];
@@ -125,6 +129,7 @@ int main() {
 
 	renderer.saveImage(image);
 
+	std::cout << "END" << std::endl;
 	int t;
 	std::cin >> t;
 

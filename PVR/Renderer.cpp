@@ -52,19 +52,19 @@ bool Renderer::rayBBoxIntersection(Vector3 minbox, Vector3 maxbox, const Vector3
 
 	return true;
 }
-bool Renderer::intersect(Ray &r, HitRecord &rec) {
+bool Renderer::intersect(Ray &r, HitRecord &rec, float tmin, float tmax) {
 	// iterate through all shapes and call shape instances' intersect function
 	for (std::vector<Shape* >::iterator it = _shapes.begin(); it != _shapes.end(); ++it) {
 		HitRecord tmpRec;
-		if ((*it)->intersect(r, 0.0, 1000.0, tmpRec) && tmpRec._t < rec._t) {
+		if ((*it)->intersect(r, tmin, tmax, tmpRec) && abs(tmpRec._t) < abs(rec._t)) {	// abs() needed?
 			rec = tmpRec;
 		}
 	}
-	return rec.is_intersect;
+	return rec._is_intersect;
 }
 
 /* Trace photon and store, once. */
-void Renderer::photonTrace(Ray& r, Vector3 power, int depth, float tmin, float tmax) {
+void Renderer::photonTrace(Ray& r, Vector3 power, int depth) {
 	// check depth
 	if (depth > G_MAX_DEPTH) return;
 	++depth;
@@ -72,7 +72,8 @@ void Renderer::photonTrace(Ray& r, Vector3 power, int depth, float tmin, float t
 	// cast ray
 	// test intersection
 	HitRecord rec;
-	bool is_intersect = intersect(r, rec);
+	rec._is_intersect = false;
+	bool is_intersect = intersect(r, rec, G_TMIN, G_TMAX);
 	// store
 	if (is_intersect) {
 		// compute filtered power
@@ -84,7 +85,7 @@ void Renderer::photonTrace(Ray& r, Vector3 power, int depth, float tmin, float t
 		// only consider diffuse reflection
 		if (roulette >= 0.3 && roulette < 0.7) {	// diffuse reflection
 			Ray r_reflect(rec._p, diffuse(rec._normal));
-			photonTrace(r_reflect, power, depth, 0.0, 1000.0);
+			photonTrace(r_reflect, power, depth);
 		}
 		else
 			return;

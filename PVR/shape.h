@@ -8,7 +8,7 @@
 class Shape;
 
 struct HitRecord {
-	bool is_intersect;
+	bool _is_intersect;
 	float _t;
 	Vector3 _p;    // point coord
 	Vector3 _normal;
@@ -34,6 +34,7 @@ public:
 	~Sphere() {}
 
 	virtual bool intersect(Ray &r, float t_min, float t_max, HitRecord &rec) {
+		rec._obj = this;
 		Vector3 oc = r._o - _center;
 		float a = r._d.dot(r._d);
 		float b = oc.dot(r._d);
@@ -43,7 +44,6 @@ public:
 			// calculate hit point
 			float temp = (-b - sqrt(b * b - a * c)) / a;
 			if (temp < t_max && temp > t_min) {
-				rec.is_intersect = true;
 				rec._t = temp;
 				rec._p = r._o + r._d*temp;
 				rec._normal = rec._p - _center;
@@ -52,7 +52,6 @@ public:
 			}
 			temp = (-b + sqrt(b*b - a*c)) / a;
 			if (temp < t_max && temp > t_min) {
-				rec.is_intersect = true;
 				rec._t = temp;
 				rec._p = r._o + r._d*temp;
 				rec._normal = rec._p - _center;
@@ -79,10 +78,13 @@ public:
 	float _d;	// len of edge
 	// Material *_mat
 	virtual bool intersect(Ray &r, float t_min, float t_max, HitRecord &rec) {
+		rec._obj = this;
 		float denom = _normal.dot(r._d);
 		if (denom != 0) {
 			rec._t = -1 * (_normal.dot(r._o) + _d) / denom;
-			rec.is_intersect = true;
+			rec._p = r._o + rec._t * r._d;
+			rec._normal = _normal;
+			rec._is_intersect = true;
 			return true;
 		}
 		else {

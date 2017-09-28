@@ -23,7 +23,9 @@ public:
 	void traceVolumeMap() {}
 
 	void emitPhoton() {}
-	void storePhoton() {}
+	void storePhoton() {
+		std::cout << "photon stored." << std::endl;
+	}
 };
 
 #endif

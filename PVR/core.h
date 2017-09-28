@@ -5,7 +5,9 @@
 #include <math.h>
 
 #define G_NUM_PHOTON 20000
-#define G_MAX_DEPTH 5
+#define G_MAX_DEPTH 1
+#define G_TMIN -1000.0f
+#define G_TMAX 1000.0f
 
 struct Presets {
 	// sampling

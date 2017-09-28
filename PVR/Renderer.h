@@ -68,11 +68,11 @@ public:
 	}
 
 	bool rayBBoxIntersection(Vector3 minbox, Vector3 maxbox, const Vector3 &rayOrigin, const Vector3 &rayDirection, float &tmin, float &tmax);
-	bool intersect(Ray &r, HitRecord &rec);	// shape intersect
+	bool intersect(Ray &r, HitRecord &rec, float tmin, float tmax);	// shape intersect
 	//////////////////////////////////////////////////////////////////////////
 	/// PHOTON MAP METHODS
 	//////////////////////////////////////////////////////////////////////////
-	void photonTrace(Ray& r, Vector3 power, int depth, float tmin, float tmax);
+	void photonTrace(Ray& r, Vector3 power, int depth);
 	//////////////////////////////////////////////////////////////////////////
 	/// CUDA METHODS
 	//////////////////////////////////////////////////////////////////////////
