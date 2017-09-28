@@ -6,6 +6,7 @@
 *.ppm
 *.dll
 externals/
+3rdparty/
 
 # User-specific files
 *.suo

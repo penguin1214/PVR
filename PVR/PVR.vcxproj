@@ -34,7 +34,10 @@
     <ClInclude Include="core.h" />
     <ClInclude Include="grid.h" />
     <ClInclude Include="interpolate.h" />
+    <ClInclude Include="light.h" />
     <ClInclude Include="material.h" />
+    <ClInclude Include="qeKDTree.h" />
+    <ClInclude Include="qePhotonMapper.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="shape.h" />
     <ClInclude Include="util.h" />
@@ -95,6 +98,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <LibraryPath>E:\github\PVR\PVR\externals\FreeImage;$(LibraryPath)</LibraryPath>
+    <IncludePath>E:\github\PVR\PVR\3rdparty\boost_1_65_1;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

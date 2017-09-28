@@ -5,11 +5,14 @@
 
 class Ray {
 public:
-	Vector3 origin;
-	Vector3 direction;
+	Ray() {}
+	Ray(Vector3 o, Vector3 d) :_o(o), _d(d) {}
+	~Ray() {}
 
-	Ray(Vector3 o, Vector3 d) : origin(o) { d.normalize(); direction = d; }
+	Vector3 _o;	// ray origin
+	Vector3 _d;	// ray direction
 };
+
 
 class Film {
 public:

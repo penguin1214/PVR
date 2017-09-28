@@ -5,6 +5,11 @@
 #include "util.h"
 #include "core.h"
 
+//////////////////////////////////////////////////////////////////////////
+/// NON-MEMBER FUNC DECLARATION
+//////////////////////////////////////////////////////////////////////////
+Vector3 diffuse(Vector3 normal);
+
 void Renderer::saveImage(float *image) {
 	char filename[2048];
 	sprintf(filename, "smoke.ppm", num_file++);
@@ -21,7 +26,6 @@ void Renderer::saveImage(float *image) {
 	ofs.flush();
 	printf("Saved image \n");
 }
-
 bool Renderer::rayBBoxIntersection(Vector3 minbox, Vector3 maxbox, const Vector3 &rayOrigin, const Vector3 &rayDirection, float &tmin, float &tmax) {
 	Vector3 dir = rayDirection;
 	Vector3 dirfrac;
@@ -48,3 +52,58 @@ bool Renderer::rayBBoxIntersection(Vector3 minbox, Vector3 maxbox, const Vector3
 
 	return true;
 }
+bool Renderer::intersect(Ray &r, HitRecord &rec) {
+	// iterate through all shapes and call shape instances' intersect function
+	for (std::vector<Shape* >::iterator it = _shapes.begin(); it != _shapes.end(); ++it) {
+		HitRecord tmpRec;
+		if ((*it)->intersect(r, 0.0, 1000.0, tmpRec) && tmpRec._t < rec._t) {
+			rec = tmpRec;
+		}
+	}
+	return rec.is_intersect;
+}
+
+/* Trace photon and store, once. */
+void Renderer::photonTrace(Ray& r, Vector3 power, int depth, float tmin, float tmax) {
+	// check depth
+	if (depth > G_MAX_DEPTH) return;
+	++depth;
+
+	// cast ray
+	// test intersection
+	HitRecord rec;
+	bool is_intersect = intersect(r, rec);
+	// store
+	if (is_intersect) {
+		// compute filtered power
+		// construct Photon structure
+		photonMapper->storePhoton();
+		// test reflection
+		float roulette = (float)rand() / (float)RAND_MAX;
+
+		// only consider diffuse reflection
+		if (roulette >= 0.3 && roulette < 0.7) {	// diffuse reflection
+			Ray r_reflect(rec._p, diffuse(rec._normal));
+			photonTrace(r_reflect, power, depth, 0.0, 1000.0);
+		}
+		else
+			return;
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+/// NON-MEMBER FUNC
+//////////////////////////////////////////////////////////////////////////
+Vector3 diffuse(Vector3 normal) {
+	float dot;
+	Vector3 res;
+	do {
+		res.x = (float)rand() / (float)RAND_MAX * 2.0f - 1.0f;
+		res.y = (float)rand() / (float)RAND_MAX * 2.0f - 1.0f;
+		res.z = (float)rand() / (float)RAND_MAX * 2.0f - 1.0f;
+		res.normalize();
+		dot = res.dot(normal);
+	} while (dot >= 0);
+	return res;
+}
+

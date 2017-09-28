@@ -12,6 +12,9 @@
 #include "camera.h"
 #include "volume.h"
 #include "interpolate.h"
+#include "light.h"
+#include "qePhotonMapper.h"
+#include "shape.h"
 
 
 #define kCIELEN 95
@@ -35,25 +38,15 @@ extern __constant__ double dev_CIE_Z[kCIELEN];
 extern __constant__ double dev_fast_trans[16];
 extern __constant__ double dev_fast_itrans[16];
 
-class Light {
-public:
-	Vector3 pos;
-	Vector3 color;
-	float intensity;
-	Light() { pos = Vector3(-100, 100, -50); color = Vector3(1.0); intensity = 10.0; }
-};
-
-class PointLight : public Light {
-public:
-	PointLight() { pos = Vector3(0.5, 0.5, 0.0); color = Vector3(1.0); intensity = 1.0; }
-};
 
 class Renderer {
 public:
 	Camera *_cam;
 	/* TODO : array of volume? */
 	BlackBody *_volume;
+	std::vector<Shape*> _shapes;
 	std::vector<PointLight* > _lights;
+	qePhotonMapper *photonMapper;
 
 	const int SPEC_SAMPLE_STEP = 15;
 	const int SPEC_TOTAL_SAMPLES = 89 / SPEC_SAMPLE_STEP;
@@ -75,7 +68,14 @@ public:
 	}
 
 	bool rayBBoxIntersection(Vector3 minbox, Vector3 maxbox, const Vector3 &rayOrigin, const Vector3 &rayDirection, float &tmin, float &tmax);
-
+	bool intersect(Ray &r, HitRecord &rec);	// shape intersect
+	//////////////////////////////////////////////////////////////////////////
+	/// PHOTON MAP METHODS
+	//////////////////////////////////////////////////////////////////////////
+	void photonTrace(Ray& r, Vector3 power, int depth, float tmin, float tmax);
+	//////////////////////////////////////////////////////////////////////////
+	/// CUDA METHODS
+	//////////////////////////////////////////////////////////////////////////
 	cudaError_t loadConstantMem();
 	cudaError_t loadMem(Vector3 *deyepos, Vector3 *dforward, Vector3 *dright, Vector3 *dup, Vector3 *devmincorrd, Vector3 *devmaxcoord,
 		float *dimg, double *devT, double *dle, double *dl, double *dlemean, double *dxm, double *dym, double *dzm,
