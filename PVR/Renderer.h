@@ -46,7 +46,7 @@ public:
 	BlackBody *_volume;
 	std::vector<Shape*> _shapes;
 	std::vector<PointLight* > _lights;
-	qePhotonMapper *photonMapper;
+	qePhotonMapper *_photonMapper;
 
 	const int SPEC_SAMPLE_STEP = 15;
 	const int SPEC_TOTAL_SAMPLES = 89 / SPEC_SAMPLE_STEP;
@@ -56,7 +56,7 @@ public:
 	int num_file;
 
 
-	Renderer() { _cam = nullptr; _volume = nullptr; }
+	Renderer() { _cam = nullptr; _volume = nullptr; _photonMapper = nullptr; }
 	~Renderer() {}
 
 	void setCamera(Vector3 eyep, Vector3 at, Vector3 r, Vector3 f, Vector3 u) {

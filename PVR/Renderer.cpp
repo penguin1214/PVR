@@ -58,6 +58,7 @@ bool Renderer::intersect(Ray &r, HitRecord &rec, float tmin, float tmax) {
 		HitRecord tmpRec;
 		if ((*it)->intersect(r, tmin, tmax, tmpRec) && abs(tmpRec._t) < abs(rec._t)) {	// abs() needed?
 			rec = tmpRec;
+			rec._idx = it - _shapes.begin();
 		}
 	}
 	return rec._is_intersect;
@@ -78,7 +79,9 @@ void Renderer::photonTrace(Ray& r, Vector3 power, int depth) {
 	if (is_intersect) {
 		// compute filtered power
 		// construct Photon structure
-		photonMapper->storePhoton();
+		qePhoton p(power, rec._p, r._d);
+		// store photon
+		_photonMapper->storePhoton(rec._idx, p);
 		// test reflection
 		float roulette = (float)rand() / (float)RAND_MAX;
 
@@ -104,7 +107,7 @@ Vector3 diffuse(Vector3 normal) {
 		res.z = (float)rand() / (float)RAND_MAX * 2.0f - 1.0f;
 		res.normalize();
 		dot = res.dot(normal);
-	} while (dot >= 0);
+	} while (dot <= 0);
 	return res;
 }
 

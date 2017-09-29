@@ -89,15 +89,17 @@ int main() {
 	Sphere *sphere1 = new Sphere(Vector3(0.0, 0.0, -400.0), 100.0);
 	Material *mat1 = new Material(Vector3(1.0, 1.0, 1.0), NULL, NULL, NULL);
 
-	//Sphere *sphere2 = new Sphere(Vector3(-200.0, 100.0, -500.0), 100.0);
-	//Material *mat2 = new Material(Vector3(0.0, 0.0, 0.0), NULL, NULL, NULL);
+	Sphere *sphere2 = new Sphere(Vector3(-200.0, 100.0, -500.0), 100.0);
+	Material *mat2 = new Material(Vector3(0.0, 0.0, 0.0), NULL, NULL, NULL);
 
-	//Plane *plane3 = new Plane(Vector3(0.0, 1.0, 0.0), 300.0);
-	//Material *_mat3 = new Material(Vector3(1.0, 1.0, 1.0), NULL, NULL, NULL);
+	Plane *plane3 = new Plane(Vector3(0.0, 1.0, 0.0), 300.0);
+	Material *_mat3 = new Material(Vector3(1.0, 1.0, 1.0), NULL, NULL, NULL);
 
 	// add shapes
-	renderer._shapes.push_back(sphere1); /*renderer._shapes.push_back(sphere2); renderer._shapes.push_back(plane3);*/
+	renderer._shapes.push_back(sphere1); renderer._shapes.push_back(sphere2); renderer._shapes.push_back(plane3);
 	/*=========================================== Photon Map ================================================*/
+	renderer._photonMapper = new qePhotonMapper();
+
 	// single light source now
 	PointLight light = *renderer._lights[0];
 	Vector3 p_power = light.power / (float)G_NUM_PHOTON * 100;
@@ -109,16 +111,16 @@ int main() {
 		// random directions in hemisphere
 		float x, y, z;
 		do {
-			x = -1.0f + (float)rand() / ((float)RAND_MAX / 2.0f);
+			x = -1.0f + (float)rand() / ((float)RAND_MAX);
 			y = -1.0f + (float)rand() / ((float)RAND_MAX / 2.0f);
 			z = -1.0f + (float)rand() / ((float)RAND_MAX);
 		} while (x*x + y*y + z*z > 1.0);
 		Vector3 dir(x, y, z);
+		dir = Vector3(0.0, 0.0, -400.0) - pl->pos;
 		dir.normalize();
 
 		// photon tracing
-		//Ray r(light.pos, dir);
-		Ray r(eyepos, dir);
+		Ray r(light.pos, dir);
 		renderer.photonTrace(r, p_power, 0); // TODO
 
 		num_cnt++;

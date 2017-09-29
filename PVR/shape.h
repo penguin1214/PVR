@@ -9,6 +9,7 @@ class Shape;
 
 struct HitRecord {
 	bool _is_intersect;
+	int _idx;	// object index in _shapes array;
 	float _t;
 	Vector3 _p;    // point coord
 	Vector3 _normal;
@@ -35,31 +36,26 @@ public:
 
 	virtual bool intersect(Ray &r, float t_min, float t_max, HitRecord &rec) {
 		rec._obj = this;
-		Vector3 oc = r._o - _center;
-		float a = r._d.dot(r._d);
-		float b = oc.dot(r._d);
-		float c = oc.dot(oc) - _radius*_radius;
-		float disc = b*b - a*c;
-		if ((sqrt(disc)) > 0) {
-			// calculate hit point
-			float temp = (-b - sqrt(b * b - a * c)) / a;
-			if (temp < t_max && temp > t_min) {
-				rec._t = temp;
-				rec._p = r._o + r._d*temp;
-				rec._normal = rec._p - _center;
-				rec._normal.normalize();
-				return true;
-			}
-			temp = (-b + sqrt(b*b - a*c)) / a;
-			if (temp < t_max && temp > t_min) {
-				rec._t = temp;
-				rec._p = r._o + r._d*temp;
-				rec._normal = rec._p - _center;
-				rec._normal.normalize();
-				return true;
-			}
+
+		Vector3 L = _center - r._o;
+		float tca = L.dot(r._d);
+		if (tca < 0) return false;
+
+		float d2 = L.dot(L) - tca * tca;
+		if (d2 > _radius*_radius) return false;
+		float thc = sqrt(_radius*_radius - d2);
+		float t0 = tca - thc; float t1 = tca + thc;
+
+		if (t0 > t1) std::swap(t0, t1);
+		if (t0 < 0) {
+			t0 = t1;
+			if (t0 < 0) return false;
 		}
-		return false;
+		rec._t = t0;
+		rec._p = r._o + r._d * t0;
+		rec._normal = rec._p - _center;
+		rec._normal.normalize();
+		return true;
 	}
 
 	Vector3 _center;
