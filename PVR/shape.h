@@ -39,7 +39,7 @@ public:
 		rec._obj = this;
 		rec._is_intersect = false;
 
-		/*Vector3 L = _center - r._o;
+		Vector3 L = _center - r._o;
 		float tca = L.dot(r._d);
 		if (tca < 0) return false;
 
@@ -58,9 +58,9 @@ public:
 		rec._normal = rec._p - _center;
 		rec._normal.normalize();
 		rec._is_intersect = true;
-		return rec._is_intersect;*/
+		return rec._is_intersect;
 
-		Vector3 oc = r._o - _center;
+		/*Vector3 oc = r._o - _center;
 		float a = r._d.dot(r._d);
 		float b = 2 * oc.dot(r._d);
 		float c = oc.dot(oc) - _radius*_radius;
@@ -75,7 +75,7 @@ public:
 				rec._is_intersect = true;
 				return rec._is_intersect;
 			}
-		}
+		}*/
 	}
 
 	Vector3 _center;

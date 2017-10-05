@@ -4,7 +4,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-#define G_NUM_PHOTON 20000
+#define G_NUM_PHOTON 200000
 #define G_MAX_DEPTH 1
 #define G_TMIN -1000.0f
 #define G_TMAX 1000.0f

@@ -81,7 +81,7 @@ int main() {
 	renderer._cam->setFovDis(fovy, dis, aspr);
 	/*===========================================Light================================================*/
 	PointLight *pl = new PointLight();
-	pl->pos = Vector3(0.0, 50.0, 0.0);
+	pl->pos = Vector3(50.0, 1.0, 10.0);
 	renderer._lights.push_back(pl);
 	// global ambient
 	//Vector3 g_ambient(0.0, 0.2, 0.2);
@@ -145,7 +145,7 @@ int main() {
 
 			// get color
 			Vector3 rt_col(0.0);	// ray tracing color only
-			Vector3 g_color(0.0, 0.0, 0.0);	// global photon map color
+			Vector3 g_color(0.0);	// global photon map color
 			Vector3 c_color(0.0);	// caustic photon map color
 			
 			// do intersect
@@ -155,7 +155,6 @@ int main() {
 			if (renderer.intersect(r, rec, 0.0, INFINITY)) {
 				// fetch color in photon map
 				g_color = renderer._photonMapper->lookUpGlobalMap(rec, G_RADIANCE_ESTIMATE_R);
-				// g_color = Vector3(1.0, 0.0, 0.0);
 			}
 
 			/*if (g_color.x != 0 || g_color.y != 0 || g_color.z != 0) {
