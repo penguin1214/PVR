@@ -72,31 +72,33 @@ int main() {
 	/*===========================================Set Grid================================================*/
 	/*===========================================Set Volume================================================*/
 	/*===========================================Set Camera================================================*/
-	Vector3 lookAt(0.0, 0.0, -200.0); Vector3 eyepos(0.0); Vector3 up(0.0, 1.0, 0.0);
+	Vector3 lookAt(50.0, 0.0, 1.0); Vector3 eyepos(50.0, 0.0, -10.0); Vector3 up(0.0, 1.0, 0.0);
 	renderer._cam = new Camera(lookAt, eyepos, up);
 
 	const float fovy = M_PI*0.33;	// 60 deg
-	const float dis = 0.5;
+	const float dis = 0.1;
 	const float aspr = (float)Presets::RESOLUTION_X / (float)Presets::RESOLUTION_Y;
 	renderer._cam->setFovDis(fovy, dis, aspr);
 	/*===========================================Light================================================*/
 	PointLight *pl = new PointLight();
-	pl->pos = Vector3(300.0, 400.0, -100.0);
+	pl->pos = Vector3(0.0, 50.0, 0.0);
 	renderer._lights.push_back(pl);
 	// global ambient
 	//Vector3 g_ambient(0.0, 0.2, 0.2);
 	/*=========================================== Objects ================================================*/
-	Sphere *sphere1 = new Sphere(Vector3(0.0, 0.0, -400.0), 100.0);
+	Sphere *sphere1 = new Sphere(Vector3(50.0, 0.0, 30.0), 10.0);
 	Material *mat1 = new Material(Vector3(1.0, 1.0, 1.0), NULL, NULL, NULL);
 
-	Sphere *sphere2 = new Sphere(Vector3(-200.0, 100.0, -500.0), 100.0);
-	Material *mat2 = new Material(Vector3(0.0, 0.0, 0.0), NULL, NULL, NULL);
+	Sphere *sphere2 = new Sphere(Vector3(30.0, 40.0, 60.0), 10.0);
+	Material *mat2 = new Material(Vector3(1.0, 0.0, 0.0), NULL, NULL, NULL);
 
-	Plane *plane3 = new Plane(Vector3(0.0, 1.0, 0.0), 300.0);
+	Plane *plane3 = new Plane(Vector3(0.0, 0.0, -1.0), -100.0);
 	Material *_mat3 = new Material(Vector3(1.0, 1.0, 1.0), NULL, NULL, NULL);
 
 	// add shapes
-	renderer._shapes.push_back(sphere1); renderer._shapes.push_back(sphere2); renderer._shapes.push_back(plane3);
+	renderer._shapes.push_back(sphere1);
+	renderer._shapes.push_back(sphere2);
+	renderer._shapes.push_back(plane3);
 	/*=========================================== Photon Map ================================================*/
 	renderer._photonMapper = new qePhotonMapper();
 
@@ -111,12 +113,11 @@ int main() {
 		// random directions in hemisphere
 		float x, y, z;
 		do {
-			x = -1.0f + (float)rand() / ((float)RAND_MAX);
+			x = -1.0f + (float)rand() / ((float)RAND_MAX / 2.0f);
 			y = -1.0f + (float)rand() / ((float)RAND_MAX / 2.0f);
-			z = -1.0f + (float)rand() / ((float)RAND_MAX);
+			z = -1.0f + (float)rand() / ((float)RAND_MAX / 2.0f);
 		} while (x*x + y*y + z*z > 1.0);
 		Vector3 dir(x, y, z);
-		dir = Vector3(0.0, 0.0, -400.0) - pl->pos;
 		dir.normalize();
 
 		// photon tracing
@@ -128,6 +129,44 @@ int main() {
 	/*=========================================== Render ================================================*/
 	float *image = new float[Presets::RESOLUTION_X * Presets::RESOLUTION_Y * 3];
 	std::cout << "Start rendering..." << std::endl;
+
+	// ray tracing
+	float u, v;
+	for (int y = 0; y < Presets::RESOLUTION_Y; y++) {
+		v = 0.5 - (float)y / (float)Presets::RESOLUTION_Y;
+		std::cout << (float)y / (float)Presets::RESOLUTION_Y << std::endl;
+		for (int x = 0; x < Presets::RESOLUTION_X; x++) {
+			u = -0.5 + (float)x / (float)Presets::RESOLUTION_X;
+
+			// pixel pos
+			Vector3 cursor = renderer._cam->_eyepos + renderer._cam->_forward*renderer._cam->_nearPlaneDistance + u*renderer._cam->_horizontal + v*renderer._cam->_vertical;
+			Vector3 ray_dir = cursor - renderer._cam->_eyepos;
+			ray_dir.normalize();
+
+			// get color
+			Vector3 rt_col(0.0);	// ray tracing color only
+			Vector3 g_color(0.0, 0.0, 0.0);	// global photon map color
+			Vector3 c_color(0.0);	// caustic photon map color
+			
+			// do intersect
+			HitRecord rec;
+			rec._is_intersect = false;
+			Ray r(renderer._cam->_eyepos, ray_dir);
+			if (renderer.intersect(r, rec, 0.0, INFINITY)) {
+				// fetch color in photon map
+				g_color = renderer._photonMapper->lookUpGlobalMap(rec, G_RADIANCE_ESTIMATE_R);
+				// g_color = Vector3(1.0, 0.0, 0.0);
+			}
+
+			/*if (g_color.x != 0 || g_color.y != 0 || g_color.z != 0) {
+				std::cout << g_color << std::endl;
+			}*/
+			image[3 * (y*(int)Presets::RESOLUTION_X + x) + 0] = g_color.x;
+			image[3 * (y*(int)Presets::RESOLUTION_X + x) + 1] = g_color.y;
+			image[3 * (y*(int)Presets::RESOLUTION_X + x) + 2] = g_color.z;
+		}
+	}
+
 
 	renderer.saveImage(image);
 

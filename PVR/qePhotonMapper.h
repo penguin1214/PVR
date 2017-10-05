@@ -1,6 +1,9 @@
 #ifndef QE_PHOTONMAPPER_H
 #define QE_PHOTONMAPPER_H
 
+#include <algorithm>
+#include "shape.h"
+
 class qePhoton {
 public:
 	qePhoton() {}
@@ -33,10 +36,35 @@ public:
 	void traceVolumeMap() {}
 
 	void emitPhoton() {}
-	void storePhoton(int idx, qePhoton p) {
-		_global[idx][_nGlobalPhoton[idx]] = p;
-		_nGlobalPhoton[idx]++;
-		std::cout << "photon stored." << std::endl;
+	void storePhoton(int obj_idx, qePhoton p) {
+		_global[obj_idx][_nGlobalPhoton[obj_idx]] = p;
+		_nGlobalPhoton[obj_idx]++;
+		//std::cout << "photon stored." << std::endl;
+	}
+
+	Vector3 lookUpGlobalMap(HitRecord &rec, float r) {
+		Vector3 g_color;
+		Vector3 pos = rec._p;
+		int obj_idx = rec._idx;
+
+		for (int i = 0; i < _nGlobalPhoton[obj_idx]; i++) {
+			// for every photon stored for a particular object
+			// test distance, use fixed radius instead of number n
+			Vector3 p_pos = _global[obj_idx][i]._pos;
+			float d2 = (pos.x - p_pos.x)*(pos.x - p_pos.x) + (pos.y - p_pos.y)*(pos.y - p_pos.y) + (pos.z - p_pos.z)*(pos.z - p_pos.z)
+				- r*r;
+			if (d2 < 0.0) {
+				Vector3 p_dir = _global[obj_idx][i]._dir;
+				float dis = (pos - p_pos).length();
+				// TODO: negative?
+				//float weight = std::max(0.0, -rec._normal.dot(p_dir));
+				//weight *= (r - dis) / r;
+				Vector3 p_power(_global[obj_idx][i]._p_r, _global[obj_idx][i]._p_g, _global[obj_idx][i]._p_b);
+				//g_color += weight*p_power;
+				g_color += p_power;
+			}
+		}
+		return g_color;
 	}
 
 private:

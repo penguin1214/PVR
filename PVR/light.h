@@ -14,7 +14,7 @@ public:
 
 class PointLight : public Light {
 public:
-	PointLight() { pos = Vector3(1.5, 1.5, 1.0); color = Vector3(1.0); intensity = 1.0; power = Vector3(1.0); }
+	PointLight() { pos = Vector3(1.5, 1.5, 1.0); color = Vector3(1.0); intensity = 1.0; power = Vector3(100.0); }
 };
 
 #endif

@@ -56,7 +56,7 @@ bool Renderer::intersect(Ray &r, HitRecord &rec, float tmin, float tmax) {
 	// iterate through all shapes and call shape instances' intersect function
 	for (std::vector<Shape* >::iterator it = _shapes.begin(); it != _shapes.end(); ++it) {
 		HitRecord tmpRec;
-		if ((*it)->intersect(r, tmin, tmax, tmpRec) && abs(tmpRec._t) < abs(rec._t)) {	// abs() needed?
+		if ((*it)->intersect(r, tmin, tmax, tmpRec) && tmpRec._t < rec._t) {	// abs() needed?
 			rec = tmpRec;
 			rec._idx = it - _shapes.begin();
 		}
@@ -74,9 +74,9 @@ void Renderer::photonTrace(Ray& r, Vector3 power, int depth) {
 	// test intersection
 	HitRecord rec;
 	rec._is_intersect = false;
-	bool is_intersect = intersect(r, rec, G_TMIN, G_TMAX);
+	rec._is_intersect = intersect(r, rec, G_TMIN, G_TMAX);
 	// store
-	if (is_intersect) {
+	if (rec._is_intersect) {
 		// compute filtered power
 		// construct Photon structure
 		qePhoton p(power, rec._p, r._d);
