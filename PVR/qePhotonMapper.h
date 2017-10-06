@@ -68,7 +68,7 @@ public:
 	}
 
 private:
-	qePhoton _global[3][20000];
+	qePhoton _global[3][2000000];
 	int _nGlobalPhoton[3];	// store number of photons for every object
 };
 

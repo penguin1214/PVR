@@ -81,7 +81,7 @@ int main() {
 	renderer._cam->setFovDis(fovy, dis, aspr);
 	/*===========================================Light================================================*/
 	PointLight *pl = new PointLight();
-	pl->pos = Vector3(50.0, 1.0, 10.0);
+	pl->pos = Vector3(50.0, 100.0, 10.0);
 	renderer._lights.push_back(pl);
 	// global ambient
 	//Vector3 g_ambient(0.0, 0.2, 0.2);
@@ -92,7 +92,7 @@ int main() {
 	Sphere *sphere2 = new Sphere(Vector3(30.0, 40.0, 60.0), 10.0);
 	Material *mat2 = new Material(Vector3(1.0, 0.0, 0.0), NULL, NULL, NULL);
 
-	Plane *plane3 = new Plane(Vector3(0.0, 0.0, -1.0), -100.0);
+	Plane *plane3 = new Plane(Vector3(0.0, 0.0, -1.0), 100.0);
 	Material *_mat3 = new Material(Vector3(1.0, 1.0, 1.0), NULL, NULL, NULL);
 
 	// add shapes

@@ -83,6 +83,7 @@ public:
 	// Material *_mat;
 };
 
+/* Plane distance d should be counter-directional with normal n. */
 class Plane : public Shape {
 public:
 	Plane(Vector3 n, float d) :_normal(n), _d(d) {
@@ -97,7 +98,7 @@ public:
 		rec._obj = this;
 		rec._is_intersect = false;
 		float denom = _normal.dot(r._d);
-		if (denom < 0.0) {
+		if (abs(denom) > 1e-6) {
 			rec._t = -1 * (_normal.dot(r._o) + _d) / denom;
 			if (rec._t > 0.0) {
 				rec._p = r._o + rec._t * r._d;

@@ -74,14 +74,17 @@ void Renderer::photonTrace(Ray& r, Vector3 power, int depth) {
 	// test intersection
 	HitRecord rec;
 	rec._is_intersect = intersect(r, rec, G_TMIN, G_TMAX);
+
 	// store
 	if (rec._is_intersect) {
-		// compute filtered power
+		// TODO: compute filtered power
+
 		// construct Photon structure
-		std::cout << rec._p << std::endl;
 		qePhoton p(power, rec._p, r._d);
 		// store photon
 		_photonMapper->storePhoton(rec._idx, p);
+
+		// material, decide transmit method
 		// test reflection
 		float roulette = (float)rand() / (float)RAND_MAX;
 
